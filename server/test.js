@@ -1,5 +1,5 @@
 import { lockSeat, lockMultipleSeats } from "./src/services/seatLockService.js";
-  import redis from "./src/config/redis.js";
+import redis from "./src/config/redis.js";
 
 const test = async () => {
   // Lock A1 first
