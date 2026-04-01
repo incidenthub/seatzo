@@ -1,23 +1,29 @@
-import { lockSeat, releaseLock } from "./src/services/seatLockService.js";
+import { lockSeat, lockMultipleSeats } from "./src/services/seatLockService.js";
+  import redis from "./src/config/redis.js";
 
 const test = async () => {
-  const eventId = "event1";
-  const seatId = "seat1";
+  // Lock A1 first
+  await lockSeat("event1", "A1", "user1");
 
-  console.log("Locking seat...");
-  const firstLock = await lockSeat(eventId, seatId, "user1");
-  console.log("First lock:", firstLock); // should be true
+  // Now try locking multiple
+  const result = await lockMultipleSeats(
+    "event1",
+    ["A1", "A2", "A3"],
+    "user2"
+  );
 
-  console.log("Trying second lock...");
-  const secondLock = await lockSeat(eventId, seatId, "user2");
-  console.log("Second lock:", secondLock); // should be false
+  console.log(result);
 
-  console.log("Releasing lock...");
-  await releaseLock(eventId, seatId);
 
-  console.log("Trying again after release...");
-  const thirdLock = await lockSeat(eventId, seatId, "user3");
-  console.log("Third lock:", thirdLock); // should be true
+const check = async () => {
+  const valA2 = await redis.get("seat:event1:A2");
+  const valA3 = await redis.get("seat:event1:A3");
+
+  console.log("A2:", valA2);
+  console.log("A3:", valA3);
+};
+
+await check();
 };
 
 test();
