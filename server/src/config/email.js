@@ -21,7 +21,7 @@ export const sendOTPEmail = async (to, name, otp) => {
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to,
-    subject: 'Verify your TicketFlow account',
+    subject: 'Verify your Seatzo account',
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:auto">
         <h2>Hi ${name},</h2>
@@ -32,7 +32,7 @@ export const sendOTPEmail = async (to, name, otp) => {
           ${otp}
         </div>
         <p style="color:#6b7280;font-size:13px">
-          If you didn't create a TicketFlow account, ignore this email.
+          If you didn't create a Seatzo account, ignore this email.
         </p>
       </div>
     `,
@@ -45,7 +45,7 @@ export const sendPasswordResetEmail = async (to, name, otp) => {
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to,
-    subject: 'Reset your TicketFlow password',
+    subject: 'Reset your Seatzo password',
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:auto">
         <h2>Hi ${name},</h2>
@@ -80,9 +80,9 @@ export const sendBookingConfirmation = async (to, name, booking) => {
           <li>Amount paid: <strong>₹${booking.amount / 100}</strong></li>
         </ul>
         ${booking.qrCode
-          ? `<p>Your entry QR code:</p>
+        ? `<p>Your entry QR code:</p>
              <img src="${booking.qrCode}" alt="QR Code" style="width:200px" />`
-          : ''}
+        : ''}
         <p style="color:#6b7280;font-size:13px">Show this email at the venue.</p>
       </div>
     `,
