@@ -8,7 +8,7 @@ import {
   forgotPassword,
   resetPassword,
   resendOTP,
-} from "../controller/auth.controller.js";
+} from "../controllers/auth.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 
 const router = Router();
