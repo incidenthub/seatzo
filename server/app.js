@@ -1,19 +1,56 @@
-import express from "express";
-import cors from "cors";
-import morgan from "morgan";
-import cookieParser from "cookie-parser";
-import authRoutes from "./src/routes/auth.routes.js";
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
+
+// ── Middleware ──────────────────────────────────────────────────────────────
+import requestId from './src/middleware/requestId.js';
+import errorHandler from './src/middleware/errorHandler.js';
+
+// ── Routes ─────────────────────────────────────────────────────────────────
+import authRoutes from './src/routes/auth.routes.js';
+import paymentRoutes from './src/routes/payment.routes.js';
+import webhookRoutes from './src/routes/webhook.routes.js';
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
-app.use(cookieParser());
-app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
+// ─── Global Middleware ─────────────────────────────────────────────────────
+// 1. Request ID — must be first so every log downstream can reference it
+app.use(requestId);
 
-app.get("/", (req, res) => {
-  res.send("API running");
+// 2. CORS
+app.use(cors());
+
+// 3. Webhook Routes MUST come before express.json()
+//    because Stripe requires the raw, unparsed body to securely verify the signature.
+app.use('/api/webhooks', webhookRoutes);
+
+// 4. Body parsing
+//    All other routes parse the body into JSON.
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 4. Cookie parser
+app.use(cookieParser());
+
+// 5. HTTP request logging
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// ─── Health Check ──────────────────────────────────────────────────────────
+app.get('/', (_req, res) => {
+  res.json({ success: true, message: 'TicketFlow API running' });
 });
-app.use("/api/auth", authRoutes);
+
+// ─── App Routes ────────────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes);
+app.use('/api/payments', paymentRoutes);
+
+// ─── 404 Handler ───────────────────────────────────────────────────────────
+app.use((_req, res) => {
+  res.status(404).json({ success: false, error: { message: 'Route not found' } });
+});
+
+// ─── Global Error Handler (must be last) ───────────────────────────────────
+app.use(errorHandler);
 
 export default app;

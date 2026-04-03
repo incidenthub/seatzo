@@ -1,11 +1,17 @@
-import "dotenv/config";
-import app from "./app.js";
-import connectDB from "./src/config/db.js";
+import 'dotenv/config';
 
-const PORT = process.env.PORT || 5000;
+// ── Validated config (fail-fast if required env vars are missing) ───────────
+import env from './src/config/env.js';
+import logger from './src/config/logger.js';
+
+import app from './app.js';
+import connectDB from './src/config/db.js';
 
 connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  app.listen(env.port, () => {
+    logger.info(`Server running on port ${env.port}`, { env: env.nodeEnv });
   });
+}).catch((err) => {
+  logger.fatal('Failed to start server', { error: err.message });
+  process.exit(1);
 });
