@@ -1,5 +1,5 @@
 import redis from '../config/redis.js';
-import Seat from '../models/Seat.js';
+import Seat from '../models/seat.model.js';
 
 // ─── Lock a single seat ───────────────────────────────────────────────────────
 // Atomically claims the Redis key (NX = only if not exists).
