@@ -1,11 +1,10 @@
 import 'dotenv/config';
 
-// ── Validated config (fail-fast if required env vars are missing) ───────────
-import env from './src/config/env.js';
-import logger from './src/config/logger.js';
-
-import app from './app.js';
-import connectDB from './src/config/db.js';
+// Dynamic imports AFTER dotenv loads
+const { default: env } = await import('./src/config/env.js');
+const { default: logger } = await import('./src/config/logger.js');
+const { default: app } = await import('./app.js');
+const { default: connectDB } = await import('./src/config/db.js');
 
 connectDB().then(() => {
   app.listen(env.port, () => {
