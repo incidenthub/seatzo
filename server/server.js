@@ -1,4 +1,3 @@
-import 'dotenv/config';
 
 // ── Validated config (fail-fast if required env vars are missing) ───────────
 import env from './src/config/env.js';

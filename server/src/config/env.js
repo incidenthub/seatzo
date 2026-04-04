@@ -5,6 +5,10 @@
 
 import AppError from '../utils/appError.js';
 
+import dotenv from "dotenv";
+
+dotenv.config();
+
 // ── Required keys (process will crash if any are absent) ──
 const REQUIRED_VARS = [
   'MONGO_URI',
@@ -18,7 +22,7 @@ const DEFAULTS = {
   PORT: '5000',
   NODE_ENV: 'development',
   STRIPE_PUBLISHABLE_KEY: '',
-  REDIS_URL: 'redis://localhost:6379',
+  
 };
 
 /**

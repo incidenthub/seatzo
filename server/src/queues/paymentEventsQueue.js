@@ -6,8 +6,8 @@ dotenv.config();
 // Standard connection options for BullMQ
 // Requires a running Redis instance or defaults to localhost
 const connection = {
-  host: process.env.REDIS_HOST || '127.0.0.1',
-  port: parseInt(process.env.REDIS_PORT || '6379')
+  url: process.env.REDIS_URL,
+  tls: {}
 };
 
 /**
