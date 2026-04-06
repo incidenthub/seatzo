@@ -1,6 +1,6 @@
 import redis from "../config/redis.js";
 
-export const calculatePrice = async (event) => {
+export const calculatePrice = async (event, viewerCount=0) => {
   const cacheKey = `price:${event._id}`;
 
   // 🚀 1. Check cache
@@ -35,8 +35,7 @@ if (hoursLeft <= 0) {
 
   // 📈 4. Demand (viewer tracking)
   const viewerKey = `viewers:${event._id}`;
-  const viewers = parseInt(await redis.get(viewerKey)) || 0;
-
+  const viewers = viewerCount;
   if (viewers > 100) multiplier *= 1.5;
   else if (viewers > 50) multiplier *= 1.2;
 

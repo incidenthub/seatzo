@@ -1,6 +1,9 @@
 import { lockMultipleSeats } from "../services/seatLockService.js";
 import { calculatePrice } from "../services/pricingService.js";
 import redis from "../config/redis.js";
+import { SEAT_STATUS } from "../utils/constants.js";
+import Seat from "../models/seat.model.js"
+
 
 // 🔒 Lock seats
 export const lockSeats = async (req, res) => {
@@ -25,29 +28,98 @@ export const lockSeats = async (req, res) => {
 };
 
 
+
+export const generateSeats = () => {
+  const seats = [];
+
+  for (let i = 1; i <= 50; i++) {
+    seats.push({
+      seatId: `A${i}`,
+      status: "AVAILABLE"
+    });
+  }
+
+  return seats;
+};
+
 export const getSeats = async (req, res) => {
   try {
     const { eventId } = req.params;
 
-    // 🔥 ADD THIS HERE (VERY IMPORTANT)
-    await redis.incr(`viewers:${eventId}`);
-    await redis.expire(`viewers:${eventId}`, 300);
+    const cacheKey = `seats:${eventId}`;
 
-    // TEMP event (replace later with DB)
+    // 🚀 1. CACHE CHECK
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.json(JSON.parse(cached));
+    }
+
+    // 🔥 2. VIEWER TRACKING
+    const viewerKey = `viewers:${eventId}`;
+    const viewerCount = await redis.incr(viewerKey);
+
+    if (viewerCount === 1) {
+      await redis.expire(viewerKey, 300);
+    }
+
+    // 🪑 3. FETCH SEATS FROM DB
+    const seats = await Seat.find({ event: eventId })
+      .select("seatNumber row section status price")
+      .lean();
+
+    // 🔒 4. CHECK REDIS LOCKS (REAL-TIME OVERRIDE)
+    const lockKeys = seats.map(
+      (s) => `seat:${eventId}:${s.seatNumber}`
+    );
+
+    const lockedValues = await redis.mGet(lockKeys);
+
+    const updatedSeats = seats.map((seat, index) => {
+      if (lockedValues[index]) {
+        return {
+          ...seat,
+
+status: SEAT_STATUS.LOCKED
+        };
+      }
+      return seat;
+    });
+
+    // 📊 5. CALCULATE AVAILABILITY
+    const availableSeats = updatedSeats.filter(
+      (s) => s.status === "AVAILABLE"
+    ).length;
+
     const event = {
       _id: eventId,
-      basePrice: 100,
-      totalSeats: 100,
-      availableSeats: 50,
+      basePrice: 100, // replace later with Event model
+      totalSeats: updatedSeats.length,
+      availableSeats,
       date: new Date(Date.now() + 5 * 60 * 60 * 1000)
     };
 
-    const pricing = await calculatePrice(event);
+    // 💰 6. PRICING
+    const pricing = await calculatePrice(event, viewerCount);
 
-    res.json({
+    // 🧩 7. ATTACH PRICE PER SEAT
+    const seatsWithPrice = updatedSeats.map((seat) => ({
+      ...seat,
+      currentPrice: pricing.price // dynamic price
+    }));
+
+    const response = {
       eventId,
+      viewers: viewerCount,
+      seats: seatsWithPrice,
       pricing
+    };
+
+    // ⚡ 8. CACHE RESULT (5 sec)
+    await redis.set(cacheKey, JSON.stringify(response), {
+      EX: 5
     });
+
+    res.json(response);
 
   } catch (err) {
     console.error(err);
