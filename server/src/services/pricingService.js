@@ -11,6 +11,8 @@ export const calculatePrice = async (event) => {
 
   let multiplier = 1.0;
 
+  
+
   // 📊 2. Availability (MOST IMPORTANT)
   const occupancy = 1 - (event.availableSeats / event.totalSeats);
 
@@ -20,6 +22,13 @@ export const calculatePrice = async (event) => {
 
   // ⏱ 3. Time-based pricing
   const hoursLeft = (new Date(event.date) - Date.now()) / 3600000;
+
+if (hoursLeft <= 0) {
+  return {
+    price: event.basePrice,
+    multiplier: 1
+  };
+}
 
   if (hoursLeft < 6) multiplier *= 1.5;
   else if (hoursLeft < 24) multiplier *= 1.2;
@@ -45,6 +54,6 @@ export const calculatePrice = async (event) => {
 
   // ⚡ 6. Cache result (performance)
   await redis.set(cacheKey, JSON.stringify(result), { EX: 30 });
-
+console.log("CALCULATING PRICE...");
   return result;
 };

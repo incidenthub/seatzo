@@ -1,5 +1,6 @@
 import { lockMultipleSeats } from "../services/seatLockService.js";
 import { calculatePrice } from "../services/pricingService.js";
+import redis from "../config/redis.js";
 
 // 🔒 Lock seats
 export const lockSeats = async (req, res) => {
