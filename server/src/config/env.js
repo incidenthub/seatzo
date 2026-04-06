@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config(); // 🔥 MUST BE FIRST
+
 import AppError from '../utils/appError.js';
 
 const REQUIRED_VARS = [

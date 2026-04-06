@@ -12,8 +12,12 @@ import authRoutes from './src/routes/auth.routes.js';
 import eventRoutes from './src/routes/event.routes.js';
 import paymentRoutes from './src/routes/payment.routes.js';
 import webhookRoutes from './src/routes/webhook.routes.js';
+import seatRoutes from "./src/routes/seat.routes.js";
+
 
 const app = express();
+
+
 
 // ─── Global Middleware ─────────────────────────────────────────────────────
 // 1. Request ID — must be first so every log downstream can reference it
@@ -46,6 +50,8 @@ app.get('/', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use("/api/seats", seatRoutes);
+
 
 // ─── 404 Handler ───────────────────────────────────────────────────────────
 app.use((_req, res) => {

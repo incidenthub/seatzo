@@ -1,4 +1,3 @@
-import 'dotenv/config';
 
 // Dynamic imports AFTER dotenv loads
 const { default: env } = await import('./src/config/env.js');
