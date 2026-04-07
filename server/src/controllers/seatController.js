@@ -3,13 +3,15 @@ import { calculatePrice } from "../services/pricingService.js";
 import redis from "../config/redis.js";
 import { SEAT_STATUS } from "../utils/constants.js";
 import Seat from "../models/seat.model.js"
+import { releaseLock } from "../services/seatLockService.js";
+
 
 
 // 🔒 Lock seats
 export const lockSeats = async (req, res) => {
   try {
     const { eventId, seatIds } = req.body;
-    const userId = "testUser"; // replace later with auth
+    const userId = "69d0de61feb5e5771ce5e1b4"; // replace later with auth
 
     const result = await lockMultipleSeats(eventId, seatIds, userId);
 
@@ -27,6 +29,23 @@ export const lockSeats = async (req, res) => {
   }
 };
 
+
+
+export const releaseSeats = async (req, res) => {
+  try {
+    const { eventId, seatIds } = req.body;
+
+    for (const seatId of seatIds) {
+      await releaseLock(eventId, seatId);
+    }
+
+    res.json({ message: "Seats released" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
 
 
 export const generateSeats = () => {
