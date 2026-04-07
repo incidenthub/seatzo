@@ -22,15 +22,24 @@ export const lockSeat = async (eventId, seatId, userId) => {
   // Step 2 — mirror lock into MongoDB
   // Required for: seatExpiryWorker queries, seat map UI, booking validation
   try {
-    await Seat.findByIdAndUpdate(
-      seatId,
-      {
-        status:        'LOCKED',
-        lockedBy:      userId,
-        lockExpiresAt: new Date(Date.now() + 300_000),
-      },
-      { new: true, runValidators: true }
-    );
+const seat = await Seat.findOneAndUpdate(
+  {
+    event: eventId,
+    seatNumber: seatId,
+    status: 'AVAILABLE'
+  },
+  {
+    status: 'LOCKED',
+    lockedBy: userId,
+    lockExpiresAt: new Date(Date.now() + 300_000),
+  },
+  { new: true }
+);
+
+if (!seat) {
+  await redis.del(key); // rollback Redis
+  return false;
+}
 
     return true;
 
@@ -51,11 +60,17 @@ export const releaseLock = async (eventId, seatId) => {
   // Run both in parallel — no dependency between them
   await Promise.all([
     redis.del(key),
-    Seat.findByIdAndUpdate(seatId, {
-      status:        'AVAILABLE',
-      lockedBy:      null,
-      lockExpiresAt: null,
-    }),
+    Seat.findOneAndUpdate(
+  {
+    event: eventId,
+    seatNumber: seatId
+  },
+  {
+    status: 'AVAILABLE',
+    lockedBy: null,
+    lockExpiresAt: null,
+  }
+),
   ]);
 };
 
@@ -64,7 +79,11 @@ export const releaseLock = async (eventId, seatId) => {
 // If any seat fails, rolls back ALL previously acquired locks.
 // All-or-nothing: either every seat is locked, or none are.
 export const lockMultipleSeats = async (eventId, seatIds, userId) => {
-  const lockedSeats = [];
+ const lockedSeats = await Seat.find({
+  event: eventId,
+  lockedBy: userId,
+  status: 'LOCKED',
+}).select('seatNumber');
 
   try {
     for (const seatId of seatIds) {
@@ -73,7 +92,9 @@ export const lockMultipleSeats = async (eventId, seatIds, userId) => {
       if (!success) {
         // This seat is taken — roll back every seat we already locked
         await Promise.all(
-          lockedSeats.map(id => releaseLock(eventId, id))
+          lockedSeats.map(seat =>
+  releaseLock(eventId, seat.seatNumber)
+)
         );
         return { success: false, failedSeat: seatId };
       }
