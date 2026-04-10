@@ -1,14 +1,38 @@
 import { Queue, Worker } from 'bullmq';
 import logger from '../config/logger.js';
-import dotenv from 'dotenv';
-dotenv.config();
+import env from '../config/env.js';
 
 // Standard connection options for BullMQ
-// Requires a running Redis instance or defaults to localhost
-const connection = {
-  host: process.env.REDIS_HOST || '127.0.0.1',
-  port: parseInt(process.env.REDIS_PORT || '6379')
-};
+// Prefers the REDIS_URL from config or defaults to configured host/port
+let connection;
+
+if (env.redisUrl) {
+  try {
+    const url = new URL(env.redisUrl);
+    connection = {
+      host: url.hostname,
+      port: parseInt(url.port || '6379', 10),
+      username: url.username || undefined,
+      password: url.password || undefined,
+      tls: url.protocol === 'rediss:' ? {} : undefined,
+      maxRetriesPerRequest: null // Required by BullMQ
+    };
+    logger.info(`[BullMQ] Parsed Redis URL for connection: ${url.hostname}:${url.port}`);
+  } catch (err) {
+    logger.error('[BullMQ] Failed to parse REDIS_URL, falling back to defaults', { error: err.message });
+    connection = {
+      host: process.env.REDIS_HOST || '127.0.0.1',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      maxRetriesPerRequest: null
+    };
+  }
+} else {
+  connection = {
+    host: process.env.REDIS_HOST || '127.0.0.1',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+    maxRetriesPerRequest: null
+  };
+}
 
 /**
  * 1. Initialize the Queue. 

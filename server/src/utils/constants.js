@@ -20,6 +20,29 @@ export const SEAT_STATUS = Object.freeze({
   AVAILABLE: 'AVAILABLE',
   LOCKED: 'LOCKED',
   BOOKED: 'BOOKED',
+  DISABLED: 'DISABLED',      // added — used when an event is cancelled
+});
+
+export const SEAT_SECTION = Object.freeze({
+  PREMIUM: 'PREMIUM',
+  GOLD: 'GOLD',
+  SILVER: 'SILVER',
+  GENERAL: 'GENERAL',
+});
+
+export const EVENT_STATUS = Object.freeze({
+  DRAFT: 'draft',
+  PUBLISHED: 'published',
+  CANCELLED: 'cancelled',
+  COMPLETED: 'completed',
+});
+
+export const EVENT_CATEGORY = Object.freeze({
+  MOVIE: 'movie',
+  CONCERT: 'concert',
+  SPORTS: 'sports',
+  THEATRE: 'theatre',
+  STANDUP: 'standup',
 });
 
 export const SUPPORTED_CURRENCIES = Object.freeze(['inr', 'usd']);
