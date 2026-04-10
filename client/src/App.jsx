@@ -10,6 +10,8 @@ const Contact = lazy(() => import('./pages/Contact'));
 // Auth Pages
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
 // Event Pages
 const EventListings = lazy(() => import('./pages/EventListings'));
@@ -20,6 +22,7 @@ const BookingConfirmation = lazy(() => import('./pages/BookingConfirmation'));
 // Dashboard Pages
 const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const OrganizerDashboard = lazy(() => import('./pages/OrganizerDashboard'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
 function App() {
   return (
@@ -34,16 +37,19 @@ function App() {
           {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* Event Routes */}
           <Route path="/events" element={<EventListings />} />
           <Route path="/events/:id" element={<EventDetail />} />
-          <Route path="/events/:id/book" element={<BookingPage />} />
+          <Route path="/events/:id/book/:bookingId" element={<BookingPage />} />
           <Route path="/booking-confirmation/:id" element={<BookingConfirmation />} />
 
           {/* Dashboard Routes */}
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/organizer-dashboard" element={<OrganizerDashboard />} />
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
           
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />

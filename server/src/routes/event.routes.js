@@ -13,7 +13,7 @@ import {
 const router = Router();
 
 // ─── Public Routes ────────────────────────────────────────────────────────────
-router.get('/',    getEvents);
+router.get('/', getEvents);
 router.get('/:id', getEvent);
 
 // ─── Organiser / Admin Routes ─────────────────────────────────────────────────
