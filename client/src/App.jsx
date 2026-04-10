@@ -1,25 +1,54 @@
-import useSeatPolling from "./hooks/useSeatPolling";
-import SeatGrid from "./components/SeatGrid";
-import LivePrice from "./components/LivePrice";
+import React, { Suspense, lazy } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import LoadingSpinner from './components/UI/LoadingSpinner';
+
+// Landing Pages
+const Home = lazy(() => import('./pages/Home'));
+const About = lazy(() => import('./pages/About'));
+const Contact = lazy(() => import('./pages/Contact'));
+
+// Auth Pages
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+
+// Event Pages
+const EventListings = lazy(() => import('./pages/EventListings'));
+const EventDetail = lazy(() => import('./pages/EventDetail'));
+const BookingPage = lazy(() => import('./pages/BookingPage'));
+const BookingConfirmation = lazy(() => import('./pages/BookingConfirmation'));
+
+// Dashboard Pages
+const UserDashboard = lazy(() => import('./pages/UserDashboard'));
+const OrganizerDashboard = lazy(() => import('./pages/OrganizerDashboard'));
 
 function App() {
-  const eventId = "69d0de61feb5e5771ce5e1b4";
-
-  // ✅ CALL hook here
-  const { seats, pricing, loading, refresh } =
-    useSeatPolling(eventId);
-
-  if (loading) return <p>Loading...</p>;
-
   return (
-    <div>
-      <LivePrice pricing={pricing} />
+    <div className="min-h-screen bg-white">
+      <Suspense fallback={<LoadingSpinner fullPage />}>
+        <Routes>
+          {/* Landing & Info Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
 
-      <SeatGrid
-        eventId={eventId}
-        seats={seats}
-        refresh={refresh}
-      />
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Event Routes */}
+          <Route path="/events" element={<EventListings />} />
+          <Route path="/events/:id" element={<EventDetail />} />
+          <Route path="/events/:id/book" element={<BookingPage />} />
+          <Route path="/booking-confirmation/:id" element={<BookingConfirmation />} />
+
+          {/* Dashboard Routes */}
+          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/organizer-dashboard" element={<OrganizerDashboard />} />
+          
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </div>
   );
 }
