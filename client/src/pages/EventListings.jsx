@@ -27,7 +27,7 @@ const EventListings = () => {
     setError(null);
     try {
       const response = await eventService.getAllEvents(filters);
-      setEvents(response.data || []);
+      setEvents(response.data?.events || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch events');
     } finally {

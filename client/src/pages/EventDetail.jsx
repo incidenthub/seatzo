@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Users, Tag, AlertCircle, ArrowLeft, ArrowRight, Clock, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useSelector } from 'react-redux';
 import eventService from '../services/event.service';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import Navbar from '../components/UI/Navbar';
@@ -14,7 +15,7 @@ const EventDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pricing, setPricing] = useState(null);
-  const token = localStorage.getItem('token');
+  const { token } = useSelector((state) => state.auth);
 
   useEffect(() => {
     fetchEvent();
@@ -143,7 +144,7 @@ const EventDetail = () => {
 
                 {event.availableSeats > 0 ? (
                     <Link 
-                      to={token ? `/events/${id}/book` : '/login'}
+                      to={token ? `/events/${id}/book/new` : '/login'}
                       className="w-full group py-6 bg-black text-white rounded-full font-black uppercase tracking-widest text-xs flex items-center justify-center gap-4 hover:gap-6 transition-all"
                     >
                         {token ? 'Configure Seats' : 'Authenticate to Book'}

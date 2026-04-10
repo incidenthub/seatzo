@@ -18,10 +18,19 @@ const Register = () => {
   const navigate = useNavigate();
   const { isLoading, error, user } = useSelector((state) => state.auth);
 
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+
   useEffect(() => {
     if (user) navigate('/dashboard');
     return () => { dispatch(clearError()); };
   }, [user, navigate, dispatch]);
+
+  // Watch for registerSuccess — isLoading went false, no error, and we're not logged in
+  useEffect(() => {
+    if (!isLoading && !error && registrationSuccess) {
+      navigate(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+    }
+  }, [isLoading, error, registrationSuccess, navigate, formData.email]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -34,6 +43,7 @@ const Register = () => {
       return;
     }
     dispatch(registerStart(formData));
+    setRegistrationSuccess(true);
   };
 
   return (

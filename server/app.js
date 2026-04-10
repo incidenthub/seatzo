@@ -13,7 +13,8 @@ import eventRoutes from './src/routes/event.routes.js';
 import paymentRoutes from './src/routes/payment.routes.js';
 import webhookRoutes from './src/routes/webhook.routes.js';
 import seatRoutes from "./src/routes/seat.routes.js";
-
+import bookingRoutes from "./src/routes/booking.routes.js";
+import adminRoutes from "./src/routes/admin.routes.js";
 
 const app = express();
 
@@ -51,7 +52,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use("/api/seats", seatRoutes);
-
+app.use("/api/bookings", bookingRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ─── 404 Handler ───────────────────────────────────────────────────────────
 app.use((_req, res) => {

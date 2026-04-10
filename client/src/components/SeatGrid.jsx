@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import axios from "axios";
 import { AlertCircle, CheckCircle } from "lucide-react";
+import seatService from "../services/seat.service";
 
-const API = "http://localhost:5000/api/seats";
-
-export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChange }) {
+export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChange, onCheckout }) {
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [message, setMessage] = useState('');
   const isProcessing = useRef(false);
@@ -20,8 +18,16 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
     
     const isSelected = selectedSeats.find((s) => s._id === seat._id);
     if (isSelected) {
+      // Deselect — release the lock
+      try {
+        await seatService.releaseSeats(eventId, [seat.seatNumber]);
+      } catch (err) {
+        console.warn('Failed to release seat lock (may have expired):', err);
+      }
       setSelectedSeats(prev => prev.filter(s => s._id !== seat._id));
       setMessage('Seat deselected');
+      setTimeout(() => setMessage(''), 2000);
+      await refresh?.();
       return;
     }
 
@@ -39,17 +45,14 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
 
     isProcessing.current = true;
     try {
-      const response = await axios.post(`${API}/lock`, {
-        eventId,
-        seatIds: [seat._id],
-      });
+      await seatService.lockSeats(eventId, [seat.seatNumber]);
 
       setSelectedSeats(prev => [...prev, { ...seat, status: 'LOCKED' }]);
       setMessage('✅ Seat locked for 5 minutes');
       setTimeout(() => setMessage(''), 2000);
       await refresh?.();
     } catch (err) {
-      const errorMsg = err.response?.data?.message || 'Failed to lock seat';
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Failed to lock seat';
       setMessage('❌ ' + errorMsg);
       setTimeout(() => setMessage(''), 3000);
     } finally {
@@ -76,6 +79,8 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
     if (!seatsByRow[seat.row]) seatsByRow[seat.row] = [];
     seatsByRow[seat.row].push(seat);
   });
+
+  const total = selectedSeats.reduce((sum, s) => sum + (s.currentPrice || s.price || 0), 0);
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
@@ -127,21 +132,21 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${seatsByRow[row].length}, 1fr)`, gap: '0.75rem' }}>
               {seatsByRow[row].map(seat => (
                 <button
-                  key={seat._id}
+                  key={seat._id || seat.seatNumber}
                   onClick={() => handleSeatClick(seat)}
-                  title={`${seat.seatNumber} - ${getSeatStatus(seat)}`}
+                  title={`${seat.seatNumber} - ${getSeatStatus(seat)} - ₹${seat.currentPrice || seat.price || 0}`}
                   style={{
                     width: '40px',
                     height: '40px',
                     borderRadius: '6px',
                     background: getSeatColor(seat),
                     border: selectedSeats.find(s => s._id === seat._id) ? '2px solid #0066cc' : '1px solid #d1d5db',
-                    cursor: seat.status === 'AVAILABLE' ? 'pointer' : 'not-allowed',
+                    cursor: seat.status === 'AVAILABLE' || selectedSeats.find(s => s._id === seat._id) ? 'pointer' : 'not-allowed',
                     fontWeight: '600',
                     fontSize: '0.75rem',
                     color: selectedSeats.find(s => s._id === seat._id) || seat.status === 'BOOKED' ? '#fff' : '#374151',
                     transition: 'transform 0.2s, background 0.2s',
-                    opacity: seat.status === 'BOOKED' ? 0.6 : 1,
+                    opacity: seat.status === 'BOOKED' || seat.status === 'DISABLED' ? 0.6 : 1,
                   }}
                   onMouseEnter={(e) => {
                     if (seat.status === 'AVAILABLE') {
@@ -165,98 +170,40 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
 
       {/* Summary */}
       {selectedSeats.length > 0 && (
-        <div style={{ marginTop: '2rem', background: '#0066cc', color: '#fff', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Selected Seats</p>
-          <p style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-            {selectedSeats.map(s => s.seatNumber).join(', ')}
-          </p>
-          <p style={{ fontSize: '0.9rem' }}>
-            {selectedSeats.length} x ₹{selectedSeats[0]?.price || 0} = ₹{selectedSeats.reduce((sum, s) => sum + (s.price || 0), 0)}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-      isProcessing.current = false;
-    }
-  };
-
-  const total = selectedSeats.reduce(
-    (sum, s) => sum + (s.currentPrice || 0),
-    0
-  );
-
-  return (
-    <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
-      <div className="text-center mb-16">
-        <div className="inline-block px-8 py-3 bg-slate-900 text-white rounded-full font-display font-bold text-xs tracking-widest uppercase mb-4">
-          STAGE / SCREEN
-        </div>
-        <div className="w-full h-1.5 bg-gradient-to-r from-transparent via-primary-400 to-transparent opacity-50" />
-      </div>
-
-      <div className="flex justify-center mb-16 overflow-x-auto pb-4">
-        <div className="grid grid-cols-10 gap-4 min-w-[500px]">
-          {seats.map((seat) => {
-            const isSelected = selectedSeats.find(
-              (s) => s.seatNumber === seat.seatNumber
-            );
-
-            return (
-              <motion.div
-                key={seat.seatNumber}
-                whileHover={{ scale: seat.status === "available" ? 1.2 : 1 }}
-                whileTap={{ scale: 0.9 }}
-                className={`w-10 h-10 flex items-center justify-center rounded-xl cursor-pointer font-bold text-xs transition-all duration-300 shadow-sm
-                  ${seat.status === "available" ? "bg-primary-50 text-primary-600 hover:bg-primary-600 hover:text-white" : ""}
-                  ${seat.status === "locked" ? "bg-slate-100 text-slate-400 cursor-not-allowed" : ""}
-                  ${seat.status === "booked" ? "bg-slate-200 text-slate-500 cursor-not-allowed" : ""}
-                  ${isSelected ? "bg-primary-600 text-white ring-4 ring-primary-100 scale-110 shadow-lg" : ""}
-                `}
-                onClick={() => handleSeatClick(seat)}
-              >
-                {seat.seatNumber}
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap justify-center gap-8 border-t border-slate-100 pt-10">
-        <Legend color="bg-primary-50 text-primary-600" label="Available" />
-        <Legend color="bg-primary-600 text-white" label="Selected" />
-        <Legend color="bg-slate-100 text-slate-400" label="Reserved" />
-        <Legend color="bg-slate-200 text-slate-500" label="Sold" />
-      </div>
-
-      {selectedSeats.length > 0 && (
-        <motion.div 
-          initial={{ y: 100 }}
-          animate={{ y: 0 }}
-          className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl z-50 glass-card p-6 rounded-3xl flex items-center justify-between border-primary-100"
-        >
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total to Pay</p>
-            <p className="text-3xl font-extrabold text-slate-900">${total.toFixed(2)}</p>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Seats Selected</p>
-              <p className="font-bold text-primary-600">{selectedSeats.length} Tickets</p>
+        <div style={{ marginTop: '2rem', background: '#0066cc', color: '#fff', padding: '1.5rem', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <p style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.25rem' }}>Selected Seats</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+                {selectedSeats.map(s => s.seatNumber).join(', ')}
+              </p>
             </div>
-            <button className="btn-primary px-8 py-4">Checkout</button>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.25rem' }}>
+                {selectedSeats.length} × ₹{selectedSeats[0]?.currentPrice || selectedSeats[0]?.price || 0}
+              </p>
+              <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>₹{total}</p>
+            </div>
+            {onCheckout && (
+              <button
+                onClick={() => onCheckout(selectedSeats, total)}
+                style={{
+                  padding: '0.75rem 2rem',
+                  background: '#fff',
+                  color: '#0066cc',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                }}
+              >
+                Proceed to Checkout →
+              </button>
+            )}
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   );
 }
-
-const Legend = ({ color, label }) => (
-  <div className="flex items-center gap-3">
-    <div className={`w-4 h-4 rounded-md shadow-sm ${color.split(' ')[0]}`} />
-    <span className="text-sm font-bold text-slate-600">{label}</span>
-  </div>
-);

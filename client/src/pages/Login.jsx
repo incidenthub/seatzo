@@ -129,6 +129,9 @@ const Login = () => {
           </form>
 
           <div className="mt-12 pt-8 border-t border-stone-100 flex justify-between items-center text-xs font-bold uppercase tracking-widest">
+            <Link to="/forgot-password" className="text-stone-400 hover:text-black hover:italic transition-colors">Forgot Password?</Link>
+          </div>
+          <div className="mt-6 flex justify-between items-center text-xs font-bold uppercase tracking-widest">
             <span className="text-stone-400">New around here?</span>
             <Link to="/register" className="text-black hover:italic">Create Account</Link>
           </div>

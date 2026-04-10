@@ -1,23 +1,24 @@
 import { useEffect, useState, useRef } from "react";
-import axios from "axios";
-
-const API = "http://localhost:5000/api/seats";
+import eventService from "../services/event.service";
 
 export default function useSeatPolling(eventId) {
   const [seats, setSeats] = useState([]);
   const [pricing, setPricing] = useState(null);
+  const [viewers, setViewers] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const intervalRef = useRef(null);
 
   const fetchSeats = async () => {
     try {
-      const res = await axios.get(`${API}/${eventId}`);
-      setSeats(res.data.seats);
-      setPricing(res.data.pricing);
+      const res = await eventService.getEventSeats(eventId);
+      setSeats(res.data.seats || []);
+      setPricing(res.data.pricing || null);
+      setViewers(res.data.viewers || 0);
       setLoading(false);
     } catch (err) {
       console.error("Polling error:", err);
+      setLoading(false);
     }
   };
 
@@ -26,6 +27,7 @@ export default function useSeatPolling(eventId) {
 
     fetchSeats();
 
+    // Poll every 5 seconds for real-time seat updates
     intervalRef.current = setInterval(fetchSeats, 5000);
 
     return () => clearInterval(intervalRef.current);
@@ -34,6 +36,7 @@ export default function useSeatPolling(eventId) {
   return {
     seats,
     pricing,
+    viewers,
     loading,
     refresh: fetchSeats,
   };
