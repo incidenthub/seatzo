@@ -16,14 +16,14 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isLoading, error, user } = useSelector((state) => state.auth);
+  const { isLoading, error, user, token } = useSelector((state) => state.auth);
 
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   useEffect(() => {
-    if (user) navigate('/dashboard');
+    if (token) navigate('/dashboard');
     return () => { dispatch(clearError()); };
-  }, [user, navigate, dispatch]);
+  }, [token, navigate, dispatch]);
 
   // Watch for registerSuccess — isLoading went false, no error, and we're not logged in
   useEffect(() => {

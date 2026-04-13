@@ -25,10 +25,7 @@ const app = express();
 app.use(requestId);
 
 // 2. CORS
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
+app.use(cors());
 
 // 3. Webhook Routes MUST come before express.json()
 //    because Stripe requires the raw, unparsed body to securely verify the signature.
