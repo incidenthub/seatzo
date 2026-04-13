@@ -98,7 +98,7 @@ export const getSeats = async (req, res) => {
         return {
           ...seat,
 
-status: SEAT_STATUS.LOCKED
+          status: SEAT_STATUS.LOCKED
         };
       }
       return seat;

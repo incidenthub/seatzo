@@ -13,7 +13,8 @@ import eventRoutes from './src/routes/event.routes.js';
 import paymentRoutes from './src/routes/payment.routes.js';
 import webhookRoutes from './src/routes/webhook.routes.js';
 import seatRoutes from "./src/routes/seat.routes.js";
-
+import bookingRoutes from "./src/routes/booking.routes.js";
+import adminRoutes from "./src/routes/admin.routes.js";
 
 const app = express();
 
@@ -24,7 +25,10 @@ const app = express();
 app.use(requestId);
 
 // 2. CORS
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 
 // 3. Webhook Routes MUST come before express.json()
 //    because Stripe requires the raw, unparsed body to securely verify the signature.
@@ -51,7 +55,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use("/api/seats", seatRoutes);
-
+app.use("/api/bookings", bookingRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ─── 404 Handler ───────────────────────────────────────────────────────────
 app.use((_req, res) => {
