@@ -10,12 +10,12 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isLoading, error, user } = useSelector((state) => state.auth);
+  const { isLoading, error, user, token } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    if (user) navigate('/dashboard');
+    if (token) navigate('/dashboard');
     return () => { dispatch(clearError()); };
-  }, [user, navigate, dispatch]);
+  }, [token, navigate, dispatch]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));

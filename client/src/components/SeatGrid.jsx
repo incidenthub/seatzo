@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, Armchair, ChevronRight, Zap } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import seatService from "../services/seat.service";
 
 export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChange, onCheckout }) {
@@ -18,27 +19,26 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
     
     const isSelected = selectedSeats.find((s) => s._id === seat._id);
     if (isSelected) {
-      // Deselect — release the lock
       try {
         await seatService.releaseSeats(eventId, [seat.seatNumber]);
       } catch (err) {
         console.warn('Failed to release seat lock (may have expired):', err);
       }
       setSelectedSeats(prev => prev.filter(s => s._id !== seat._id));
-      setMessage('Seat deselected');
+      setMessage('SECTOR RELEASED');
       setTimeout(() => setMessage(''), 2000);
       await refresh?.();
       return;
     }
 
     if (seat.status !== 'AVAILABLE') {
-      setMessage('❌ This seat is not available');
+      setMessage('UNAVAILABLE_SECTOR');
       setTimeout(() => setMessage(''), 3000);
       return;
     }
 
     if (selectedSeats.length >= 6) {
-      setMessage('❌ Maximum 6 seats can be selected');
+      setMessage('ALLOCATION_LIMIT_REACHED');
       setTimeout(() => setMessage(''), 3000);
       return;
     }
@@ -46,164 +46,169 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
     isProcessing.current = true;
     try {
       await seatService.lockSeats(eventId, [seat.seatNumber]);
-
       setSelectedSeats(prev => [...prev, { ...seat, status: 'LOCKED' }]);
-      setMessage('✅ Seat locked for 5 minutes');
+      setMessage('ALLOCATION_SECURED');
       setTimeout(() => setMessage(''), 2000);
       await refresh?.();
     } catch (err) {
-      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Failed to lock seat';
-      setMessage('❌ ' + errorMsg);
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'LOCK_FAILURE';
+      setMessage(errorMsg.toUpperCase());
       setTimeout(() => setMessage(''), 3000);
     } finally {
       isProcessing.current = false;
     }
   };
 
-  const getSeatColor = (seat) => {
-    if (selectedSeats.find(s => s._id === seat._id)) return '#0066cc';
-    if (seat.status === 'AVAILABLE') return '#e5e7eb';
-    if (seat.status === 'LOCKED') return '#fbbf24';
-    if (seat.status === 'BOOKED') return '#6b7280';
-    return '#d1d5db';
-  };
-
-  const getSeatStatus = (seat) => {
-    if (selectedSeats.find(s => s._id === seat._id)) return 'Selected';
-    return seat.status;
-  };
-
-  // Group seats by row
   const seatsByRow = {};
   seats.forEach(seat => {
     if (!seatsByRow[seat.row]) seatsByRow[seat.row] = [];
     seatsByRow[seat.row].push(seat);
   });
 
-  const total = selectedSeats.reduce((sum, s) => sum + (s.currentPrice || s.price || 0), 0);
+  const total = selectedSeats.reduce((sum, s) => sum + (Number(s.currentPrice || s.price) || 0), 0);
+
+  const getSeatStatusClass = (seat) => {
+    const isSelected = selectedSeats.find(s => s._id === seat._id);
+    if (isSelected) return 'bg-black text-white border-black';
+    if (seat.status === 'AVAILABLE') return 'bg-stone-50 text-stone-900 border-stone-200 hover:border-black hover:bg-white';
+    if (seat.status === 'LOCKED') return 'bg-amber-100 text-amber-700 border-amber-200 cursor-not-allowed';
+    if (seat.status === 'BOOKED') return 'bg-stone-200 text-stone-400 border-transparent cursor-not-allowed';
+    return 'bg-stone-100 text-stone-300 border-transparent cursor-not-allowed';
+  };
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '2rem', textAlign: 'center', color: '#111827' }}>
-        🎭 Select Your Seats (Max 6)
-      </h2>
+    <div className="max-w-5xl mx-auto px-4 py-12 selection:bg-black selection:text-white">
+      <header className="text-center mb-16">
+        <h2 className="text-4xl font-display font-black tracking-tighter uppercase italic mb-4">Tactical Allocation.</h2>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-400">Select up to 6 units for precise authorization</p>
+      </header>
 
-      {/* Message */}
-      {message && (
-        <div style={{ padding: '1rem', marginBottom: '1.5rem', borderRadius: '8px', background: message.includes('❌') ? '#fee2e2' : '#dcfce7', color: message.includes('❌') ? '#c00' : '#166534', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-          {message.includes('❌') ? <AlertCircle size={20} /> : <CheckCircle size={20} />}
-          {message}
-        </div>
-      )}
+      {/* Narrative Alerts */}
+      <AnimatePresence mode="wait">
+        {message && (
+          <motion.div 
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 20, opacity: 0 }}
+            className={`flex items-center justify-center gap-3 p-4 mb-12 rounded-2xl border text-[10px] font-black tracking-[0.2em] uppercase ${
+                message.includes('FAILURE') || message.includes('LIMIT') || message.includes('UNAVAILABLE') 
+                ? 'bg-red-50 text-red-600 border-red-100' 
+                : 'bg-stone-950 text-white border-white/5'
+            }`}
+          >
+            {message.includes('FAILURE') ? <AlertCircle size={14} /> : <CheckCircle size={14} />}
+            {message}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Legend */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem', background: '#f9fafb', padding: '1rem', borderRadius: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '24px', height: '24px', background: '#e5e7eb', borderRadius: '4px' }} />
-          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Available</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '24px', height: '24px', background: '#fbbf24', borderRadius: '4px' }} />
-          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Locked (5 min)</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '24px', height: '24px', background: '#6b7280', borderRadius: '4px' }} />
-          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Booked</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '24px', height: '24px', background: '#0066cc', borderRadius: '4px' }} />
-          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Selected</span>
-        </div>
-      </div>
-
-      {/* Seat Grid */}
-      <div style={{ background: '#fff', padding: '2rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
-        {/* Screen */}
-        <div style={{ textAlign: 'center', marginBottom: '3rem', fontSize: '0.875rem', color: '#9ca3af', fontWeight: '600' }}>
-          🎬 SCREEN
-        </div>
-
-        {/* Seats */}
-        {Object.keys(seatsByRow).sort().map(row => (
-          <div key={row} style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: '30px', fontSize: '0.875rem', fontWeight: '600', color: '#6b7280', textAlign: 'center' }}>
-              {row}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${seatsByRow[row].length}, 1fr)`, gap: '0.75rem' }}>
-              {seatsByRow[row].map(seat => (
-                <button
-                  key={seat._id || seat.seatNumber}
-                  onClick={() => handleSeatClick(seat)}
-                  title={`${seat.seatNumber} - ${getSeatStatus(seat)} - ₹${seat.currentPrice || seat.price || 0}`}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '6px',
-                    background: getSeatColor(seat),
-                    border: selectedSeats.find(s => s._id === seat._id) ? '2px solid #0066cc' : '1px solid #d1d5db',
-                    cursor: seat.status === 'AVAILABLE' || selectedSeats.find(s => s._id === seat._id) ? 'pointer' : 'not-allowed',
-                    fontWeight: '600',
-                    fontSize: '0.75rem',
-                    color: selectedSeats.find(s => s._id === seat._id) || seat.status === 'BOOKED' ? '#fff' : '#374151',
-                    transition: 'transform 0.2s, background 0.2s',
-                    opacity: seat.status === 'BOOKED' || seat.status === 'DISABLED' ? 0.6 : 1,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (seat.status === 'AVAILABLE') {
-                      e.target.style.transform = 'scale(1.1)';
-                      e.target.style.background = '#d1d5db';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'scale(1)';
-                    e.target.style.background = getSeatColor(seat);
-                  }}
-                  disabled={seat.status !== 'AVAILABLE' && !selectedSeats.find(s => s._id === seat._id)}
-                >
-                  {seat.seatNumber}
-                </button>
-              ))}
-            </div>
+      {/* Tactical Legend */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-20 p-6 bg-stone-50 rounded-[2rem] border border-stone-100">
+        {[
+          { label: 'Available', color: 'bg-stone-50 border-stone-200' },
+          { label: 'Reserved', color: 'bg-amber-100 border-amber-200' },
+          { label: 'Restricted', color: 'bg-stone-200' },
+          { label: 'Validated', color: 'bg-black' }
+        ].map((item, i) => (
+          <div key={i} className="flex items-center gap-3 px-4">
+            <div className={`w-3 h-3 rounded-sm border ${item.color}`} />
+            <span className="text-[10px] font-black uppercase tracking-widest text-stone-500">{item.label}</span>
           </div>
         ))}
       </div>
 
-      {/* Summary */}
-      {selectedSeats.length > 0 && (
-        <div style={{ marginTop: '2rem', background: '#0066cc', color: '#fff', padding: '1.5rem', borderRadius: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <p style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.25rem' }}>Selected Seats</p>
-              <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
-                {selectedSeats.map(s => s.seatNumber).join(', ')}
-              </p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.25rem' }}>
-                {selectedSeats.length} × ₹{selectedSeats[0]?.currentPrice || selectedSeats[0]?.price || 0}
-              </p>
-              <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>₹{total}</p>
-            </div>
-            {onCheckout && (
-              <button
-                onClick={() => onCheckout(selectedSeats, total)}
-                style={{
-                  padding: '0.75rem 2rem',
-                  background: '#fff',
-                  color: '#0066cc',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                }}
-              >
-                Proceed to Checkout →
-              </button>
-            )}
-          </div>
+      {/* Main Grid Interface */}
+      <div className="relative p-12 md:p-20 bg-white rounded-[3rem] border border-stone-100 shadow-sm overflow-x-auto">
+        <div className="min-w-[500px]">
+             {/* Stage/Screen Indicator */}
+             <div className="w-full h-1 bg-gradient-to-r from-transparent via-stone-200 to-transparent mb-20 relative">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-8 py-2 bg-white text-[10px] font-black uppercase tracking-[0.5em] text-stone-300">
+                    AUTHORIZATION ZONE
+                </div>
+             </div>
+
+             {/* Dynamic Seat Map */}
+             <div className="flex flex-col gap-6">
+                {Object.keys(seatsByRow).sort().map(row => (
+                    <div key={row} className="flex gap-8 items-center justify-center">
+                        <div className="w-8 h-8 flex items-center justify-center text-[10px] font-black text-stone-300 border border-stone-100 rounded-lg">
+                            {row}
+                        </div>
+                        <div className="flex gap-3">
+                            {seatsByRow[row].map(seat => {
+                                const isSelected = selectedSeats.find(s => s._id === seat._id);
+                                return (
+                                    <motion.button
+                                        key={seat._id || seat.seatNumber}
+                                        whileHover={seat.status === 'AVAILABLE' || isSelected ? { scale: 1.1 } : {}}
+                                        whileTap={seat.status === 'AVAILABLE' || isSelected ? { scale: 0.95 } : {}}
+                                        onClick={() => handleSeatClick(seat)}
+                                        disabled={seat.status !== 'AVAILABLE' && !isSelected}
+                                        className={`w-10 h-10 rounded-xl border text-[10px] font-black transition-all flex items-center justify-center relative group ${getSeatStatusClass(seat)}`}
+                                    >
+                                        <span className={isSelected ? 'relative z-10' : ''}>{seat.seatNumber.replace(row, '')}</span>
+                                        {isSelected && <div className="absolute inset-0 bg-white opacity-10 animate-pulse rounded-xl" />}
+                                    </motion.button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+             </div>
         </div>
-      )}
+      </div>
+
+      {/* High-Precision Summary Bar */}
+      <AnimatePresence>
+        {selectedSeats.length > 0 && (
+            <motion.div 
+               initial={{ y: 100, opacity: 0 }}
+               animate={{ y: 0, opacity: 1 }}
+               exit={{ y: 100, opacity: 0 }}
+               className="mt-16 bg-zinc-950 p-10 md:p-12 rounded-[3.5rem] text-white shadow-2xl relative overflow-hidden"
+            >
+                <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+                    <Armchair size={150} />
+                </div>
+
+                <div className="flex flex-col md:flex-row justify-between items-center gap-12 relative z-10">
+                    <div className="flex-1 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <Zap size={14} className="text-amber-400" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-500">Atomic Lock Active</span>
+                        </div>
+                        <div className="flex flex-wrap gap-4">
+                            {selectedSeats.map(s => (
+                                <div key={s._id} className="px-4 py-2 bg-white/10 rounded-lg text-sm font-black tracking-tighter border border-white/5">
+                                    {s.seatNumber}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col items-center md:items-end gap-2">
+                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-500 underline underline-offset-8">Total Valuation</span>
+                         <div className="flex items-baseline gap-2">
+                            <span className="text-6xl font-display font-black tracking-tighter italic">₹{total.toLocaleString('en-IN')}</span>
+                            <span className="text-stone-500 text-[10px] font-black uppercase">INR</span>
+                         </div>
+                    </div>
+
+                    {onCheckout && (
+                        <button
+                            onClick={() => onCheckout(selectedSeats, total)}
+                            className="group flex items-center gap-6 px-10 py-6 bg-white text-black rounded-3xl hover:bg-stone-100 transition-all overflow-hidden"
+                        >
+                            <span className="font-black uppercase tracking-widest text-xs">Proceed to Auth</span>
+                            <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
+                                <ChevronRight size={18} />
+                            </div>
+                        </button>
+                    )}
+                </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
