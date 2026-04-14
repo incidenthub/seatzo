@@ -2,33 +2,42 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-display: "Syne", sans-serif;
-  
-  --color-primary: #000000;
-  --color-secondary: #f5f5f7;
-  --color-accent: #ff3e00;
+  --font-display: "Inter", sans-serif;
+
+  --color-primary: #1a1a1a;
+  --color-secondary: #f5f5f5;
+  --color-accent: #1a1a1a;
   --color-surface: #ffffff;
-  --color-text-main: #1d1d1f;
-  --color-text-muted: #86868b;
+  --color-text-main: #1a1a1a;
+  --color-text-muted: #888888;
 }
 
 @layer base {
   :root {
     --bg-color: #ffffff;
-    --text-color: #1d1d1f;
+    --text-color: #1a1a1a;
   }
 
   body {
     background-color: var(--bg-color);
     color: var(--text-color);
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
   }
 
-  h1, h2, h3, h4, .font-display {
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background-color: #1a1a1a;
+    color: #ffffff;
   }
 }
 
@@ -36,45 +45,34 @@
   .text-balance {
     text-wrap: balance;
   }
-  
+
   .glass {
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.3);
   }
-
-  .mask-reveal {
-    mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
-    mask-size: 100% 200%;
-    mask-position: 0 100%;
-    transition: mask-position 0.7s ease;
-  }
-
-  .mask-reveal:hover {
-    mask-position: 0 0;
-  }
-  
-  .magnetic-area {
-    display: inline-block;
-    padding: 20px;
-  }
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #fafafa;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #000;
+  background: #ccc;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #333;
+  background: #999;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
 }

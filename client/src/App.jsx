@@ -10,6 +10,7 @@ const Contact = lazy(() => import('./pages/Contact'));
 // Auth Pages
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const OrganizerRegister = lazy(() => import('./pages/OrganizerRegister'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
@@ -24,9 +25,12 @@ const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const OrganizerDashboard = lazy(() => import('./pages/OrganizerDashboard'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
+import AuthModal from './components/Auth/AuthModal';
+
 function App() {
   return (
     <div className="min-h-screen bg-white">
+      <AuthModal />
       <Suspense fallback={<LoadingSpinner fullPage />}>
         <Routes>
           {/* Landing & Info Routes */}
@@ -35,8 +39,9 @@ function App() {
           <Route path="/contact" element={<Contact />} />
 
           {/* Auth Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/register" element={<Navigate to="/" replace />} />
+          <Route path="/organizer-register" element={<OrganizerRegister />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
@@ -50,7 +55,7 @@ function App() {
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/organizer-dashboard" element={<OrganizerDashboard />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
-          
+
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

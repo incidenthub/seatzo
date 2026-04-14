@@ -1,118 +1,262 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ArrowRight } from 'lucide-react';
+import { Search, ChevronDown, Menu, X, ArrowRight } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { openAuthModal } from '../../store/slices/uiSlice';
+import Cookies from 'js-cookie';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
-  const token = localStorage.getItem('accessToken');
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const token = Cookies.get('accessToken');
+  const userString = Cookies.get('user');
+  const user = userString ? JSON.parse(userString) : null;
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navLinks = [
-    { name: 'Events', path: '/events' },
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isMobileMenuOpen]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/events?search=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+    }
+  };
+
+  const leftLinks = [
+    { name: 'Explore', path: '/events', hasDropdown: true },
     { name: 'About', path: '/about' },
     { name: 'Contact', path: '/contact' },
   ];
 
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${isScrolled ? 'py-4 bg-white/80 backdrop-blur-xl border-b border-black/5' : 'py-8 bg-transparent'}`}>
-      <div className="max-w-[1400px] mx-auto px-6 flex justify-between items-center">
-        {/* Logo */}
-        <Link to="/" className="text-2xl font-black tracking-tighter flex items-center gap-2">
-          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-             <div className="w-4 h-4 bg-white rotate-45" />
+    <>
+      <nav
+        className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled
+          ? 'bg-white/95 backdrop-blur-md shadow-[0_1px_0_rgba(0,0,0,0.06)]'
+          : 'bg-white'
+          }`}
+      >
+        <div className="max-w-[1360px] mx-auto px-5 h-[56px] flex items-center justify-between gap-4">
+
+          {/* ─── Left: Logo + Links ─────────────────────────── */}
+          <div className="flex items-center gap-7">
+            {/* Logo */}
+            <Link to="/" className="text-[22px] font-bold text-[#1a1a1a] tracking-[-0.02em] shrink-0">
+              S.
+            </Link>
+
+            {/* Desktop nav links */}
+            <div className="hidden lg:flex items-center gap-6">
+              {leftLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  className={`flex items-center gap-1 text-[14px] transition-colors ${location.pathname === link.path
+                    ? 'text-[#1a1a1a] font-medium'
+                    : 'text-[#666] hover:text-[#1a1a1a]'
+                    }`}
+                >
+                  {link.name}
+                  {link.hasDropdown && <ChevronDown size={14} className="text-[#999]" />}
+                </Link>
+              ))}
+            </div>
           </div>
-          <span>SEATZO.</span>
-        </Link>
 
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-12">
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              to={link.path}
-              className={`text-sm font-bold uppercase tracking-widest transition-colors hover:text-stone-400 ${
-                location.pathname === link.path ? 'text-black' : 'text-stone-500'
-              }`}
-            >
-              {link.name}
-            </Link>
-          ))}
-        </div>
+          {/* ─── Center: Search Bar ────────────────────────── */}
+          <form
+            onSubmit={handleSearch}
+            className="hidden md:flex items-center flex-1 max-w-[320px] mx-4"
+          >
+            <div className="relative w-full">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#999]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by Inspiration"
+                className="w-full h-[36px] pl-9 pr-4 rounded-full bg-[#f5f5f5] border-none outline-none text-[13px] text-[#1a1a1a] placeholder:text-[#999] focus:bg-[#efefef] transition-colors"
+              />
+            </div>
+          </form>
 
-        {/* CTA */}
-        <div className="hidden md:flex items-center gap-6">
-          {token ? (
-            <Link to="/dashboard" className="text-sm font-bold uppercase tracking-widest border-b-2 border-black pb-1">
-              Dashboard
-            </Link>
-          ) : (
-            <>
-              <Link to="/login" className="text-sm font-bold uppercase tracking-widest border-b-2 border-transparent hover:border-black transition-all pb-1">
-                Login
-              </Link>
-              <Link 
-                to="/register" 
-                className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-full hover:scale-105 transition-transform"
+          {/* ─── Right: Auth Buttons ──────────────────────── */}
+          <div className="hidden lg:flex items-center gap-4">
+            {token ? (
+              <>
+                {user?.role === 'organiser' && (
+                  <Link
+                    to="/organizer-dashboard"
+                    className="text-[14px] text-[#DC3558] font-bold hover:text-[#C02A4A] transition-colors mr-4"
+                  >
+                    Admin Dashboard
+                  </Link>
+                )}
+                <button
+                onClick={() => {
+                  Cookies.remove('accessToken');
+                  Cookies.remove('user');
+                  window.location.reload();
+                }}
+                className="h-[34px] px-5 rounded-md bg-[#1a1a1a] text-white text-[13px] font-medium flex items-center hover:bg-[#333] transition-colors"
               >
-                Sign Up
-              </Link>
-            </>
-          )}
+                Log Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/organizer-register"
+                  className="text-[14px] text-[#DC3558] font-bold hover:text-[#C02A4A] transition-colors mr-2"
+                >
+                  List Your Event
+                </Link>
+                <button
+                  onClick={() => dispatch(openAuthModal())}
+                  className="text-[14px] text-[#666] hover:text-[#1a1a1a] transition-colors"
+                >
+                  Log in
+                </button>
+                <button
+                  onClick={() => dispatch(openAuthModal())}
+                  className="h-[34px] px-4 rounded-md bg-[#1a1a1a] text-white text-[13px] font-medium flex items-center hover:bg-[#333] transition-colors"
+                >
+                  Get Started
+                </button>
+                <Link
+                  to="/events"
+                  className="h-[34px] px-4 rounded-md border border-[#ddd] text-[#1a1a1a] text-[13px] font-medium flex items-center hover:border-[#bbb] transition-colors"
+                >
+                  Browse Events
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* ─── Mobile: Hamburger ────────────────────────── */}
+          <button
+            className="lg:hidden p-1.5"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
+      </nav>
 
-        {/* Mobile Toggle */}
-        <button 
-          className="md:hidden p-2"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
-
-      {/* Mobile Menu */}
+      {/* ─── Mobile Menu ──────────────────────────────────── */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-0 bg-white z-40 p-10 flex flex-col justify-between"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 top-[56px] bg-white z-40 overflow-y-auto"
           >
-             <div className="space-y-10 pt-20">
-               {navLinks.map((link) => (
-                 <Link
-                   key={link.name}
-                   to={link.path}
-                   onClick={() => setIsMobileMenuOpen(false)}
-                   className="block text-6xl font-black tracking-tighter hover:text-accent transition-colors"
-                 >
-                   {link.name}
-                 </Link>
-               ))}
-             </div>
-             <div>
-               <Link 
-                to="/register" 
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center justify-between py-10 border-t border-black/5"
-               >
-                 <span className="text-2xl font-bold italic">Start Booking</span>
-                 <ArrowRight size={32} />
-               </Link>
-             </div>
+            <div className="px-5 py-6 space-y-1">
+              {/* Search */}
+              <form onSubmit={handleSearch} className="mb-4">
+                <div className="relative">
+                  <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#999]" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by Inspiration"
+                    className="w-full h-[40px] pl-9 pr-4 rounded-full bg-[#f5f5f5] border-none outline-none text-[14px] text-[#1a1a1a] placeholder:text-[#999]"
+                  />
+                </div>
+              </form>
+
+              {leftLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block py-3 text-[16px] text-[#1a1a1a] font-medium border-b border-[#f0f0f0]"
+                >
+                  {link.name}
+                </Link>
+              ))}
+
+              <div className="pt-6 space-y-3">
+                {token ? (
+                  <>
+                    {user?.role === 'organiser' && (
+                      <Link
+                        to="/organizer-dashboard"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="block w-full py-3 mb-2 bg-[#DC3558]/[0.08] text-[#DC3558] border border-[#DC3558]/20 text-center rounded-md text-[14px] font-bold"
+                      >
+                        Admin Dashboard
+                      </Link>
+                    )}
+                    <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      Cookies.remove('accessToken');
+                      Cookies.remove('user');
+                      window.location.reload();
+                    }}
+                    className="block w-full py-3 bg-[#1a1a1a] text-white text-center rounded-md text-[14px] font-medium"
+                  >
+                    Log Out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/organizer-register"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block w-full py-3 mb-2 bg-[#DC3558]/[0.08] text-[#DC3558] border border-[#DC3558]/20 text-center rounded-md text-[14px] font-bold"
+                    >
+                      List Your Event
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        dispatch(openAuthModal());
+                      }}
+                      className="block w-full py-3 border border-[#ddd] text-center rounded-md text-[14px] font-medium text-[#1a1a1a]"
+                    >
+                      Log in
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        dispatch(openAuthModal());
+                      }}
+                      className="block w-full py-3 bg-[#1a1a1a] text-white text-center rounded-md text-[14px] font-medium"
+                    >
+                      Get Started
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </nav>
+    </>
   );
 };
 
