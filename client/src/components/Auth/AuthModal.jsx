@@ -15,11 +15,6 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const AppleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path d="M17.05 15.69c-.06 1.76 1.5 2.36 1.57 2.39-.02.08-.24.81-.74 1.54-.44.64-1.05 1.5-1.74 1.52-.71.02-1.02-.42-1.83-.42-.81 0-1.1.41-1.85.44-.69.02-1.22-.76-1.75-1.54-1.07-1.56-1.91-4.41-1.37-6.38.31-1.12 1.12-1.88 2.06-1.9 1.11-.02 1.83.69 2.51.69.7 0 1.53-.78 2.68-.66.49.02 2.03.18 2.92 1.48-.08.06-1.74 1.02-1.71 2.99zM15.41 6.8c.45-.55.75-1.32.66-2.1-.64.03-1.44.44-1.91.99-.41.48-.77 1.28-.67 2.05.7.06 1.46-.38 1.92-.94z"/>
-  </svg>
-);
 
 const IndianFlag = () => (
   <svg width="24" height="16" viewBox="0 0 36 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="border border-gray-200">
@@ -110,7 +105,10 @@ const AuthModal = () => {
           <div className="flex-1 px-8 py-4 flex flex-col justify-center">
             {view === 'options' ? (
               <div className="space-y-4">
-                <button className="w-full flex items-center justify-center gap-6 py-3.5 bg-white border border-[#ccc] rounded-md hover:bg-gray-50 transition-colors group relative">
+                <button 
+                  onClick={() => alert('Google Login is coming soon!')}
+                  className="w-full flex items-center justify-center gap-6 py-3.5 bg-white border border-[#ccc] rounded-md hover:bg-gray-50 transition-colors group relative"
+                >
                   <div className="absolute left-6"><GoogleIcon /></div>
                   <span className="text-[14px] text-[#555] font-medium group-hover:text-[#333]">Continue with Google</span>
                 </button>
@@ -123,10 +121,6 @@ const AuthModal = () => {
                   <span className="text-[14px] text-[#555] font-medium group-hover:text-[#333]">Continue with Email</span>
                 </button>
 
-                <button className="w-full flex items-center justify-center gap-6 py-3.5 bg-white border border-[#ccc] rounded-md hover:bg-gray-50 transition-colors group relative">
-                  <div className="absolute left-6"><AppleIcon /></div>
-                  <span className="text-[14px] text-[#555] font-medium group-hover:text-[#333]">Continue with Apple</span>
-                </button>
 
                 <div className="text-center py-6 text-[#999] text-[13px] tracking-wide relative">
                   <span className="bg-white px-4 relative z-10">OR</span>

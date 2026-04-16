@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Users, DollarSign, Plus, Edit, Eye, Trash2, ArrowRight, Send, X } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, DollarSign, Plus, Edit, Eye, Trash2, ArrowRight, Send, X, LogOut, Home as HomeIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { motion } from 'framer-motion';
-import Navbar from '../components/UI/Navbar';
-import Footer from '../components/UI/Footer';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import eventService from '../services/event.service';
+import { logoutSuccess } from '../store/slices/authSlice';
+import Cookies from 'js-cookie';
 
 const OrganizerDashboard = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { user, token } = useSelector((state) => state.auth);
+
+  const handleLogout = () => {
+    Cookies.remove('accessToken');
+    Cookies.remove('user');
+    dispatch(logoutSuccess());
+    navigate('/login');
+  };
 
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,22 +114,42 @@ const OrganizerDashboard = () => {
   const draftCount = events.filter(e => e.status === 'draft').length;
 
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
+    <div className="min-h-screen bg-white selection:bg-[#DC3558] selection:text-white">
+      {/* Standalone Dashboard Nav */}
+      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-stone-100 px-8 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-8">
+          <div className="text-xl font-black tracking-tighter cursor-default">
+            SEATZO<span className="text-[#DC3558]">.</span>
+          </div>
+          <div className="h-4 w-px bg-stone-200 hidden md:block" />
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-400 hidden md:block">
+            Internal Management
+          </p>
+        </div>
 
-      <main className="pt-40 max-w-[1400px] mx-auto px-6 pb-40">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-5 py-2.5 bg-stone-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#DC3558] transition-all"
+          >
+            <LogOut size={14} /> End Session
+          </button>
+        </div>
+      </nav>
+
+      <main className="pt-32 max-w-[1400px] mx-auto px-6 pb-40">
         {/* Header */}
         <header className="mb-20 flex flex-col md:flex-row justify-between items-end gap-8">
           <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-4">Organiser Panel</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#DC3558] mb-4">Command Center</p>
             <h1 className="text-6xl font-black tracking-tighter uppercase italic">Event Manager.</h1>
           </motion.div>
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-8 py-4 bg-black text-white rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:gap-5 transition-all shadow-2xl shadow-black/20"
+            className="px-8 py-4 bg-stone-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:translate-y-[-2px] transition-all shadow-2xl shadow-stone-900/20"
           >
-            <Plus size={16} /> Create Event
+            <Plus size={16} /> Deploy New Event
           </button>
         </header>
 
@@ -212,11 +240,10 @@ const OrganizerDashboard = () => {
                       </div>
 
                       {/* Status */}
-                      <div className={`px-4 py-2 border rounded-full text-[9px] font-black uppercase tracking-widest ${
-                        event.status === 'published' ? 'bg-green-50 text-green-600 border-green-100' :
-                        event.status === 'draft' ? 'bg-yellow-50 text-yellow-600 border-yellow-100' :
-                        'bg-red-50 text-red-500 border-red-100'
-                      }`}>
+                      <div className={`px-4 py-2 border rounded-full text-[9px] font-black uppercase tracking-widest ${event.status === 'published' ? 'bg-green-50 text-green-600 border-green-100' :
+                          event.status === 'draft' ? 'bg-yellow-50 text-yellow-600 border-yellow-100' :
+                            'bg-red-50 text-red-500 border-red-100'
+                        }`}>
                         {event.status}
                       </div>
 
@@ -321,7 +348,6 @@ const OrganizerDashboard = () => {
         </div>
       )}
 
-      <Footer />
     </div>
   );
 };

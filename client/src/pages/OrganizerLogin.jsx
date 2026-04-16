@@ -3,39 +3,32 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, MoveLeft, Terminal, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { registerStart, clearError } from '../store/slices/authSlice';
+import { loginStart, clearError, logoutStart, loginFailure } from '../store/slices/authSlice';
 
-const OrganizerRegister = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'organiser',
-  });
+const OrganizerLogin = () => {
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { isLoading, error, token, user } = useSelector((state) => state.auth);
-  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   useEffect(() => {
     if (token && user) {
       if (user.role === 'organiser') {
         navigate('/organizer-dashboard');
       } else {
-        // Restrict access for customers and admins
-        navigate('/');
+        // Restricted: Only organisers allowed here
+        dispatch(logoutStart());
+        const msg = user.role === 'admin' 
+          ? 'Administrators must use the standard login portal.' 
+          : 'Customer accounts are restricted from the Partner Portal.';
+        dispatch(loginFailure(msg));
+        navigate('/organizer-login');
       }
     }
     return () => { dispatch(clearError()); };
-  }, [token, user, navigate, dispatch]);
-
-  useEffect(() => {
-    if (!isLoading && !error && registrationSuccess) {
-      navigate(`/verify-email?email=${encodeURIComponent(formData.email)}`);
-    }
-  }, [isLoading, error, registrationSuccess, navigate, formData.email]);
+  }, [token, user, navigate, dispatch, error]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -43,12 +36,7 @@ const OrganizerRegister = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match");
-      return;
-    }
-    dispatch(registerStart(formData));
-    setRegistrationSuccess(true);
+    dispatch(loginStart(formData));
   };
 
   return (
@@ -78,7 +66,7 @@ const OrganizerRegister = () => {
                   Partner Access
                 </span>
                 <span className="h-[1px] w-12 bg-stone-200" />
-                <span className="text-[9px] font-mono text-stone-400">TICKETFLOW_AUTH_v2.0</span>
+                <span className="text-[9px] font-mono text-stone-400">SESSION_AUTH_v2.0</span>
               </motion.div>
               
               <motion.h1 
@@ -87,8 +75,8 @@ const OrganizerRegister = () => {
                 transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
                 className="text-6xl md:text-8xl font-bold tracking-tighter leading-[0.9] mb-8"
               >
-                Onboard your <br />
-                <span className="italic font-light">venue network.</span>
+                Enter the <br />
+                <span className="italic font-light">control plane.</span>
               </motion.h1>
             </div>
             
@@ -99,7 +87,7 @@ const OrganizerRegister = () => {
               className="hidden lg:block pb-4"
             >
               <p className="text-[10px] font-black uppercase tracking-[0.4em] text-stone-300 vertical-text rotate-180">
-                SCALING LIVE SINCE 2026
+                AUTHORIZED ACCESS ONLY
               </p>
             </motion.div>
           </div>
@@ -115,20 +103,20 @@ const OrganizerRegister = () => {
           >
             <div>
               <h3 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Terminal size={14} className="text-[#DC3558]" /> Infrastructure
+                <Terminal size={14} className="text-[#DC3558]" /> Vault Entry
               </h3>
               <p className="text-stone-500 text-sm leading-relaxed">
-                Gain access to low-latency seat locking and automated payout orchestration. 
-                Your account is subject to entity verification.
+                Re-sync your administrator credentials to manage venue reservations and 
+                automated settlement schedules.
               </p>
             </div>
             <div>
               <h3 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Shield size={14} className="text-[#DC3558]" /> Security
+                <Shield size={14} className="text-[#DC3558]" /> Encryption
               </h3>
               <p className="text-stone-500 text-sm leading-relaxed">
-                All administrative channels are secured with HMAC-based signature 
-                verification and end-to-end encryption.
+                Session integrity is monitored. Use hardware security keys if high-risk 
+                operations are being performed.
               </p>
             </div>
           </motion.div>
@@ -146,30 +134,16 @@ const OrganizerRegister = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-x-12 gap-y-12">
+            <form onSubmit={handleSubmit} className="space-y-12">
               <div className="group border-b border-stone-100 focus-within:border-[#DC3558] transition-all duration-500 pb-2">
                 <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-stone-400 mb-4 group-focus-within:text-[#DC3558]">
-                  Venue / Admin Name
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full bg-transparent outline-none text-xl font-medium tracking-tight"
-                  placeholder="The Grand Arena"
-                />
-              </div>
-
-              <div className="group border-b border-stone-100 focus-within:border-[#DC3558] transition-all duration-500 pb-2">
-                <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-stone-400 mb-4 group-focus-within:text-[#DC3558]">
-                  Official Email
+                  Administrator ID (Email)
                 </label>
                 <input
                   type="email"
                   name="email"
                   required
+                  autoFocus
                   value={formData.email}
                   onChange={handleChange}
                   className="w-full bg-transparent outline-none text-xl font-medium tracking-tight"
@@ -178,11 +152,20 @@ const OrganizerRegister = () => {
               </div>
 
               <div className="group border-b border-stone-100 focus-within:border-[#DC3558] transition-all duration-500 pb-2">
-                <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-stone-400 mb-4 group-focus-within:text-[#DC3558]">
-                  Key Password
-                </label>
+                <div className="flex justify-between items-center mb-4">
+                  <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-stone-400 group-focus-within:text-[#DC3558]">
+                    Security Key
+                  </label>
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-[9px] font-bold uppercase tracking-widest text-stone-300 hover:text-stone-900 transition-colors"
+                  >
+                    {showPassword ? 'Mask' : 'Reveal'}
+                  </button>
+                </div>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   name="password"
                   required
                   value={formData.password}
@@ -192,36 +175,21 @@ const OrganizerRegister = () => {
                 />
               </div>
 
-              <div className="group border-b border-stone-100 focus-within:border-[#DC3558] transition-all duration-500 pb-2">
-                <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-stone-400 mb-4 group-focus-within:text-[#DC3558]">
-                  Verify Key
-                </label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="w-full bg-transparent outline-none text-xl font-medium tracking-tight"
-                  placeholder="••••••••"
-                />
-              </div>
-
-              <div className="md:col-span-2 pt-8">
+              <div className="pt-8">
                 <button
                   type="submit"
                   disabled={isLoading}
                   className="group relative w-full overflow-hidden bg-stone-900 text-white rounded-2xl py-6 font-bold text-[10px] uppercase tracking-[0.3em] transition-all duration-500 hover:bg-[#DC3558] disabled:opacity-50"
                 >
                   <span className="relative z-10 flex items-center justify-center gap-3">
-                    {isLoading ? "Synchronizing..." : "Initialize Venue Protocol"}
+                    {isLoading ? "Authenticating..." : "Authorize Access"}
                     {!isLoading && <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform duration-500" />}
                   </span>
                 </button>
 
-                <div className="mt-8 flex justify-center">
-                  <Link to="/organizer-login" className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 hover:text-stone-900 transition-colors">
-                    Existing Partner? <span className="text-[#DC3558] ml-2">Secure Login</span>
+                <div className="mt-8 flex justify-center gap-12">
+                  <Link to="/organizer-register" className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 hover:text-stone-900 transition-colors">
+                    New Venue? <span className="text-[#DC3558] ml-2">Apply for Onboarding</span>
                   </Link>
                 </div>
               </div>
@@ -244,4 +212,4 @@ const OrganizerRegister = () => {
   );
 };
 
-export default OrganizerRegister;
+export default OrganizerLogin;

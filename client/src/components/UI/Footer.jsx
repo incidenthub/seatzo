@@ -1,106 +1,97 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowUpRight } from 'lucide-react';
-import { FaTwitter, FaInstagram, FaGithub } from 'react-icons/fa';
+import { ArrowUpRight, Mail } from 'lucide-react';
+import { FaInstagram, FaTwitter, FaLinkedin } from 'react-icons/fa';
 
 const Footer = () => {
-  return (
-    <footer className="bg-[#1a1a1a] text-white py-20 md:py-24 px-6">
-      <div className="max-w-[1200px] mx-auto">
-        {/* Top — Brand */}
-        <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-16 md:mb-20">
-          <div>
-            <Link to="/" className="text-[28px] font-bold tracking-[-0.03em] block mb-3">
-              S.
-            </Link>
-            <p className="text-white/40 text-[15px] max-w-xs leading-relaxed">
-              Production-grade event ticketing with atomic seat locking and dynamic pricing.
-            </p>
-          </div>
-          <Link
-            to="/events"
-            className="group flex items-center gap-2 px-6 py-2.5 rounded-md border border-white/15 hover:border-white/30 transition-colors text-[13px] font-medium"
-          >
-            Explore Events
-            <ArrowUpRight size={14} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-          </Link>
-        </div>
+    const currentYear = new Date().getFullYear();
 
-        {/* Link columns */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16 md:mb-20">
-          <div>
-            <h4 className="text-[11px] uppercase tracking-[0.15em] text-white/25 font-medium mb-5">Navigation</h4>
-            <ul className="space-y-2.5">
-              {[
-                { name: 'Events', path: '/events' },
-                { name: 'About', path: '/about' },
-                { name: 'Contact', path: '/contact' },
-              ].map((link) => (
-                <li key={link.name}>
-                  <Link to={link.path} className="text-white/55 hover:text-white transition-colors text-[14px]">
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-[11px] uppercase tracking-[0.15em] text-white/25 font-medium mb-5">Account</h4>
-            <ul className="space-y-2.5">
-              {[
-                { name: 'Log in', path: '/login' },
-                { name: 'Register', path: '/register' },
-                { name: 'Dashboard', path: '/dashboard' },
-              ].map((link) => (
-                <li key={link.name}>
-                  <Link to={link.path} className="text-white/55 hover:text-white transition-colors text-[14px]">
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-[11px] uppercase tracking-[0.15em] text-white/25 font-medium mb-5">System</h4>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-[12px] text-white/45 font-medium">All Systems Operational</span>
-            </div>
-            <p className="text-[14px] text-white/55">Latency: 12ms</p>
-            <p className="text-[14px] text-white/55">Uptime: 99.99%</p>
-          </div>
-          <div>
-            <h4 className="text-[11px] uppercase tracking-[0.15em] text-white/25 font-medium mb-5">Connect</h4>
-            <div className="flex gap-3">
-              {[
-                { icon: <FaTwitter size={16} />, href: '#' },
-                { icon: <FaInstagram size={16} />, href: '#' },
-                { icon: <FaGithub size={16} />, href: '#' },
-              ].map((s, i) => (
-                <a
-                  key={i}
-                  href={s.href}
-                  className="w-9 h-9 rounded-lg border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:border-white/25 transition-all"
-                >
-                  {s.icon}
-                </a>
-              ))}
-            </div>
-          </div>
-        </div>
+    return (
+        <footer className="bg-white pt-32 pb-12 px-6 md:px-12 border-t border-stone-100 overflow-hidden">
+            <div className="max-w-[1400px] mx-auto">
+                
+                {/* Main Footer Content */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-16 mb-32">
+                    
+                    {/* Newsletter / Contact Call to Action */}
+                    <div className="md:col-span-6 space-y-8">
+                        <h2 className="text-4xl md:text-6xl font-light italic tracking-tighter uppercase leading-[0.85]">
+                            Start your <br />
+                            <span className="text-[#DC3558]">vault</span> journey.
+                        </h2>
+                        <div className="flex flex-col gap-4 max-w-sm">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-400">
+                                Join our curated list for exclusive signals.
+                            </p>
+                            <div className="relative group">
+                                <input 
+                                    type="email" 
+                                    placeholder="ALIAS@SYSTEM.COM" 
+                                    className="w-full bg-transparent border-b-2 border-stone-900 py-4 text-sm font-mono focus:outline-none placeholder:text-stone-200"
+                                />
+                                <button className="absolute right-0 bottom-4 hover:translate-x-1 transition-transform">
+                                    <ArrowUpRight size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
-        {/* Bottom */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-6 border-t border-white/[0.06] text-[11px] text-white/20 font-medium">
-          <span>© 2026 Seatzo. All rights reserved.</span>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-white/50 transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white/50 transition-colors">Terms</a>
-            <a href="#" className="hover:text-white/50 transition-colors">Security</a>
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
+                    {/* Navigation Columns */}
+                    <div className="md:col-span-3 space-y-6">
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#DC3558]">Navigation</p>
+                        <ul className="space-y-4">
+                            {['Events', 'Archive', 'Identity', 'Pricing', 'Security'].map((link) => (
+                                <li key={link}>
+                                    <a href="#" className="text-sm font-medium hover:italic transition-all uppercase tracking-tight text-stone-600 hover:text-stone-950">
+                                        {link}
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    {/* Socials & Legal */}
+                    <div className="md:col-span-3 space-y-6">
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#DC3558]">Connect</p>
+                        <ul className="space-y-4">
+                            {[
+                                { name: 'Instagram', icon: <FaInstagram size={14} /> },
+                                { name: 'Twitter', icon: <FaTwitter size={14} /> },
+                                { name: 'LinkedIn', icon: <FaLinkedin size={14} /> },
+                                { name: 'Contact', icon: <Mail size={14} /> },
+                            ].map((social) => (
+                                <li key={social.name}>
+                                    <a href="#" className="flex items-center gap-2 text-sm font-medium uppercase tracking-tight text-stone-600 hover:text-stone-950 group">
+                                        <span className="group-hover:rotate-12 transition-transform">{social.icon}</span>
+                                        {social.name}
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+
+                {/* The Brutalist Brand Statement */}
+                <div className="relative border-t border-stone-100 pt-12">
+                    <div className="flex flex-col md:flex-row justify-between items-end gap-8">
+                        <div className="text-[9px] font-mono text-stone-300 uppercase tracking-[0.3em] leading-relaxed">
+                            Designed for the elite.<br />
+                            Powered by Seatzo Protocol.<br />
+                            Thrissur // Kerala // IN
+                        </div>
+                        
+                        <div className="text-[9px] font-mono text-stone-300 uppercase tracking-[0.3em] text-right">
+                            © {currentYear} ALL RIGHTS RESERVED<br />
+                            v.2.0.46_STABLE
+                        </div>
+                    </div>
+
+                    {/* Large Background Text Clipping */}
+                    <h1 className="text-[25vw] font-black text-stone-50/80 leading-none tracking-tighter uppercase select-none pointer-events-none absolute -bottom-20 left-1/2 -translate-x-1/2 z-[-1] whitespace-nowrap">
+                        SEATZO.
+                    </h1>
+                </div>
+            </div>
+        </footer>
+    );
 };
 
 export default Footer;
