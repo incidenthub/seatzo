@@ -1,8 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit';
+import Cookies from 'js-cookie';
 
 const initialState = {
-  user: JSON.parse(localStorage.getItem('user')) || null,
-  token: localStorage.getItem('accessToken') || null,
+  user: Cookies.get('user') ? JSON.parse(Cookies.get('user')) : null,
+  token: Cookies.get('accessToken') || null,
   isLoading: false,
   error: null,
 };
@@ -20,8 +21,8 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.accessToken;
       state.error = null;
-      localStorage.setItem('user', JSON.stringify(action.payload.user));
-      localStorage.setItem('accessToken', action.payload.accessToken);
+      Cookies.set('user', JSON.stringify(action.payload.user), { expires: 7 }); // 7 days
+      Cookies.set('accessToken', action.payload.accessToken, { expires: 7 });
     },
     loginFailure: (state, action) => {
       state.isLoading = false;
@@ -47,8 +48,8 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.error = null;
-      localStorage.removeItem('user');
-      localStorage.removeItem('accessToken');
+      Cookies.remove('user');
+      Cookies.remove('accessToken');
     },
     logoutFailure: (state, action) => {
       state.isLoading = false;

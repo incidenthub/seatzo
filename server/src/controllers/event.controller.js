@@ -80,12 +80,12 @@ export const getEvents = async (req, res) => {
     // Only return published events to the public
     const filter = { status: EVENT_STATUS.PUBLISHED };
 
-    if (city)     filter.city = city.toLowerCase().trim();
+    if (city) filter.city = city.toLowerCase().trim();
     if (category) filter.category = category;
 
     if (date) {
       const dayStart = new Date(date);
-      const dayEnd   = new Date(date);
+      const dayEnd = new Date(date);
       dayEnd.setDate(dayEnd.getDate() + 1);
       filter.date = { $gte: dayStart, $lt: dayEnd };
     }
@@ -97,15 +97,15 @@ export const getEvents = async (req, res) => {
     }
 
     const sortOptions = {
-      date:       { date: 1 },
-      price:      { basePrice: 1 },
+      date: { date: 1 },
+      price: { basePrice: 1 },
       popularity: { availableSeats: 1 },  // fewest seats left = most popular
     };
     const sortQuery = sortOptions[sort] || { date: 1 };
 
-    const pageNum  = Math.max(1, parseInt(page));
+    const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-    const skip     = (pageNum - 1) * limitNum;
+    const skip = (pageNum - 1) * limitNum;
 
     const [events, total] = await Promise.all([
       Event.find(filter)
@@ -119,7 +119,7 @@ export const getEvents = async (req, res) => {
     res.json({
       events,
       pagination: {
-        page:  pageNum,
+        page: pageNum,
         limit: limitNum,
         total,
         pages: Math.ceil(total / limitNum),
@@ -261,8 +261,8 @@ export const getAnalytics = async (req, res) => {
         { $match: { event: event._id, status: 'CONFIRMED' } },
         {
           $group: {
-            _id:           null,
-            totalRevenue:  { $sum: '$totalAmount' },
+            _id: null,
+            totalRevenue: { $sum: '$totalAmount' },
             totalBookings: { $sum: 1 },
           },
         },
@@ -273,7 +273,7 @@ export const getAnalytics = async (req, res) => {
         { $match: { event: event._id, status: 'CONFIRMED' } },
         {
           $group: {
-            _id:   { $dateToString: { format: '%Y-%m-%d', date: '$confirmedAt' } },
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$confirmedAt' } },
             count: { $sum: 1 },
           },
         },
@@ -287,9 +287,9 @@ export const getAnalytics = async (req, res) => {
       ]),
     ]);
 
-    const totalRevenue  = revenueResult[0]?.totalRevenue  ?? 0;
+    const totalRevenue = revenueResult[0]?.totalRevenue ?? 0;
     const totalBookings = revenueResult[0]?.totalBookings ?? 0;
-    const soldSeats     = event.totalSeats - event.availableSeats;
+    const soldSeats = event.totalSeats - event.availableSeats;
     const occupancyRate = event.totalSeats > 0
       ? `${((soldSeats / event.totalSeats) * 100).toFixed(1)}%`
       : '0%';
@@ -297,7 +297,7 @@ export const getAnalytics = async (req, res) => {
     res.json({
       totalRevenue,
       totalBookings,
-      totalSeats:     event.totalSeats,
+      totalSeats: event.totalSeats,
       availableSeats: event.availableSeats,
       soldSeats,
       occupancyRate,

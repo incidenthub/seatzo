@@ -1,8 +1,8 @@
 import api from './api';
 
 const authService = {
-  register: (name, email, password) =>
-    api.post('/auth/register', { name, email, password }),
+  register: (name, email, password, role) =>
+    api.post('/auth/register', { name, email, password, role }),
 
   verifyEmail: (email, otp) =>
     api.post('/auth/verify-email', { email, otp }),

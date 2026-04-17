@@ -1,114 +1,276 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ArrowRight } from 'lucide-react';
+import { Search, ChevronDown, Menu, X, ArrowUpRight, User, LogOut, LayoutDashboard, Ticket } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { openAuthModal } from '../../store/slices/uiSlice';
+import Cookies from 'js-cookie';
+
+// 2026 Category Meta - Aligned with your specific ticket types
+const CATEGORIES = [
+  { id: 'concerts', label: 'Concerts', icon: '🎤', description: 'Stadium tours & indie sets' },
+  { id: 'sports', label: 'Sports', icon: '⚽', description: 'Elite matches & global derbies' },
+  { id: 'movies', label: 'Cinema', icon: '🎬', description: 'Premieres & arthouse screenings' },
+  { id: 'standup', label: 'Standup', icon: '🎙️', description: 'World-class comedy nights' },
+];
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [isExploreOpen, setIsExploreOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
   const location = useLocation();
-  const token = localStorage.getItem('accessToken');
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const token = Cookies.get('accessToken');
+  const user = Cookies.get('user') ? JSON.parse(Cookies.get('user')) : null;
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setIsScrolled(window.scrollY > 40);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navLinks = [
-    { name: 'Events', path: '/events' },
-    { name: 'About', path: '/about' },
-    { name: 'Contact', path: '/contact' },
-  ];
+  // Animation Constants
+  const menuTransition = { type: "spring", damping: 25, stiffness: 200 };
 
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${isScrolled ? 'py-4 bg-white/80 backdrop-blur-xl border-b border-black/5' : 'py-8 bg-transparent'}`}>
-      <div className="max-w-[1400px] mx-auto px-6 flex justify-between items-center">
-        {/* Logo */}
-        <Link to="/" className="text-2xl font-black tracking-tighter flex items-center gap-2">
-          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-             <div className="w-4 h-4 bg-white rotate-45" />
-          </div>
-          <span>SEATZO.</span>
-        </Link>
+    <nav
+      className={`fixed top-0 w-full z-[100] transition-all duration-700 ease-[0.16, 1, 0.3, 1] ${
+        isScrolled 
+          ? 'py-4 bg-[#FAF9F6]/80 backdrop-blur-xl border-b border-black/[0.05]' 
+          : 'py-8 bg-transparent'
+      }`}
+    >
+      <div className="max-w-[1600px] mx-auto px-6 md:px-12 flex items-center justify-between">
+        
+        {/* --- Left: Branding & Core Navigation --- */}
+        <div className="flex items-center gap-16">
+          <Link 
+            to="/" 
+            className="group flex items-center gap-2 text-2xl font-light tracking-tighter text-stone-950"
+          >
+            <span className="font-bold">SEATZO</span>
+            <span className="text-[#DC3558] transition-transform duration-500 group-hover:scale-150">.</span>
+          </Link>
 
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-12">
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              to={link.path}
-              className={`text-sm font-bold uppercase tracking-widest transition-colors hover:text-stone-400 ${
-                location.pathname === link.path ? 'text-black' : 'text-stone-500'
-              }`}
+          {/* Desktop Links - Minimal Editorial Style */}
+          <div className="hidden xl:flex items-center gap-10">
+            <div 
+              className="relative"
+              onMouseEnter={() => setIsExploreOpen(true)}
+              onMouseLeave={() => setIsExploreOpen(false)}
             >
-              {link.name}
-            </Link>
-          ))}
+              <button className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400 hover:text-black transition-colors">
+                Explore Curation <ChevronDown size={12} className={`transition-transform duration-500 ${isExploreOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Mega Dropdown - Gallery Style */}
+              <AnimatePresence>
+                {isExploreOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute top-full -left-10 w-[500px] pt-6"
+                  >
+                    <div className="bg-white rounded-3xl shadow-[0_30px_100px_rgba(0,0,0,0.1)] border border-stone-100 p-8 grid grid-cols-2 gap-4">
+                      {CATEGORIES.map((cat) => (
+                        <Link
+                          key={cat.id}
+                          to={`/events?category=${cat.id}`}
+                          className="group/item p-4 rounded-2xl hover:bg-stone-50 transition-all border border-transparent hover:border-stone-100"
+                        >
+                          <div className="flex items-center gap-4">
+                            <span className="text-2xl group-hover/item:scale-110 transition-transform">{cat.icon}</span>
+                            <div>
+                              <p className="text-[12px] font-bold uppercase tracking-widest text-stone-900">{cat.label}</p>
+                              <p className="text-[10px] text-stone-400 mt-1 font-medium leading-tight">{cat.description}</p>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                      <Link to="/events" className="col-span-2 mt-2 p-4 border-t border-stone-50 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-[#DC3558]">
+                        View Full Calendar <ArrowUpRight size={14} />
+                      </Link>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <Link to="/about" className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400 hover:text-black transition-colors">History</Link>
+            <Link to="/contact" className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400 hover:text-black transition-colors">Concierge</Link>
+          </div>
         </div>
 
-        {/* CTA */}
-        <div className="hidden md:flex items-center gap-6">
-          {token ? (
-            <Link to="/dashboard" className="text-sm font-bold uppercase tracking-widest border-b-2 border-black pb-1">
-              Dashboard
-            </Link>
-          ) : (
-            <>
-              <Link to="/login" className="text-sm font-bold uppercase tracking-widest border-b-2 border-transparent hover:border-black transition-all pb-1">
-                Login
-              </Link>
-              <Link 
-                to="/register" 
-                className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-full hover:scale-105 transition-transform"
-              >
-                Sign Up
-              </Link>
-            </>
-          )}
-        </div>
+        {/* --- Right: Search & Identity --- */}
+        <div className="flex items-center gap-8">
+          
+          {/* Refined Expanding Search */}
+          <div className={`hidden md:flex items-center bg-stone-100/50 rounded-full border border-transparent transition-all duration-500 px-4 ${searchFocused ? 'w-[350px] bg-white border-stone-200 shadow-sm' : 'w-[200px]'}`}>
+            <Search size={16} className="text-stone-400" />
+            <input 
+              type="text" 
+              placeholder="Search Moments..."
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              className="w-full bg-transparent px-3 py-2.5 text-xs outline-none placeholder:text-stone-300 font-medium"
+            />
+          </div>
 
-        {/* Mobile Toggle */}
-        <button 
-          className="md:hidden p-2"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+          <div className="relative">
+            <button 
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="flex items-center gap-3 group"
+            >
+              {token ? (
+                <>
+                  <div className="text-right hidden sm:block">
+                    <p className="text-[10px] font-bold uppercase tracking-widest leading-none text-stone-900">{user?.name}</p>
+                    <p className="text-[8px] font-medium text-stone-400 tracking-tighter mt-1">Access Key ID: 2026-X</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-stone-950 flex items-center justify-center text-white text-xs font-bold ring-0 ring-stone-200 group-hover:ring-4 transition-all duration-500">
+                    {user?.name?.[0]}
+                  </div>
+                </>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-400 ring-0 ring-stone-200 group-hover:ring-4 group-hover:bg-stone-200 transition-all duration-500">
+                  <User size={20} />
+                </div>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isProfileOpen && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  className="absolute right-0 mt-6 w-64 bg-white rounded-3xl shadow-2xl border border-stone-100 p-3 overflow-hidden"
+                >
+                  {token ? (
+                    <>
+                      <div className="p-4 mb-2 bg-stone-50 rounded-2xl">
+                         <p className="text-[10px] font-black uppercase text-stone-300 tracking-widest mb-1">Status</p>
+                         <p className="text-xs font-bold text-[#DC3558] flex items-center gap-2">
+                           <div className="w-1.5 h-1.5 rounded-full bg-[#DC3558] animate-pulse" />
+                           Vibrance Member
+                         </p>
+                      </div>
+                      <Link 
+                        to="/profile" 
+                        onClick={() => setIsProfileOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 text-xs font-bold text-stone-600 hover:text-black hover:bg-stone-50 rounded-xl transition-all"
+                      >
+                        <User size={16} /> Identity
+                      </Link>
+                      
+                      {/* Priority Action: List Event */}
+                      <Link 
+                        to="/organizer-register" 
+                        onClick={() => setIsProfileOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 text-xs font-bold text-[#DC3558] hover:bg-[#DC3558]/5 rounded-xl transition-all"
+                      >
+                        <Ticket size={16} className="text-[#DC3558]/30" /> List Your Event
+                      </Link>
+
+                      {user?.role === 'organiser' && (
+                        <Link 
+                          to="/organizer-dashboard" 
+                          onClick={() => setIsProfileOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 text-xs font-bold text-stone-600 hover:text-black hover:bg-stone-50 rounded-xl transition-all"
+                        >
+                          <LayoutDashboard size={16} /> Admin Space
+                        </Link>
+                      )}
+                      <button 
+                        onClick={() => { Cookies.remove('accessToken'); window.location.reload(); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                      >
+                        <LogOut size={16} /> Terminate Session
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="p-4 mb-2 bg-stone-50 rounded-2xl">
+                        <p className="text-[10px] font-black uppercase text-stone-300 tracking-widest mb-1">Guest Mode</p>
+                        <p className="text-[11px] font-bold text-stone-600">Sync with the scene for full access.</p>
+                      </div>
+                      <Link 
+                        to="/organizer-register" 
+                        onClick={() => setIsProfileOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 text-xs font-bold text-[#DC3558] hover:bg-[#DC3558]/5 rounded-xl transition-all"
+                      >
+                         <ArrowUpRight size={16} className="text-[#DC3558]/30" /> List Your Event
+                      </Link>
+                      <button 
+                        onClick={() => { dispatch(openAuthModal()); setIsProfileOpen(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-stone-600 hover:text-black hover:bg-stone-50 rounded-xl transition-all"
+                      >
+                         <User size={16} className="text-stone-300" /> Sign In
+                      </button>
+                      <button 
+                        onClick={() => { dispatch(openAuthModal()); setIsProfileOpen(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-stone-600 hover:text-black hover:bg-stone-50 rounded-xl transition-all border-t border-stone-50 mt-1 pt-4"
+                      >
+                         <Ticket size={16} className="text-stone-300" /> Create Account
+                      </button>
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Mobile Menu Trigger */}
+          <button 
+            className="xl:hidden p-2 text-stone-950 hover:bg-stone-100 rounded-full transition-colors"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu size={24} />
+          </button>
+        </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* --- Mobile Fullscreen Overlay --- */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-0 bg-white z-40 p-10 flex flex-col justify-between"
+            initial={{ opacity: 0, x: '100%' }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: '100%' }}
+            transition={menuTransition}
+            className="fixed inset-0 h-screen bg-white z-[200] p-8 flex flex-col"
           >
-             <div className="space-y-10 pt-20">
-               {navLinks.map((link) => (
-                 <Link
-                   key={link.name}
-                   to={link.path}
-                   onClick={() => setIsMobileMenuOpen(false)}
-                   className="block text-6xl font-black tracking-tighter hover:text-accent transition-colors"
-                 >
-                   {link.name}
-                 </Link>
-               ))}
-             </div>
-             <div>
-               <Link 
-                to="/register" 
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center justify-between py-10 border-t border-black/5"
-               >
-                 <span className="text-2xl font-bold italic">Start Booking</span>
-                 <ArrowRight size={32} />
+            <div className="flex justify-between items-center mb-20">
+              <span className="text-xl font-bold tracking-tighter">SEATZO<span className="text-[#DC3558]">.</span></span>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-3 bg-stone-100 rounded-full"><X size={24}/></button>
+            </div>
+
+            <div className="space-y-8">
+              {['Concerts', 'Sports', 'Cinema', 'Standup'].map((item) => (
+                <Link
+                  key={item}
+                  to="/events"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block text-6xl font-light tracking-tighter hover:italic hover:text-[#DC3558] transition-all"
+                >
+                  {item}
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-auto space-y-4">
+               <div className="h-[1px] bg-stone-100 w-full mb-8" />
+               <Link to="/organizer-register" className="flex items-center justify-between p-8 bg-stone-950 text-white rounded-[2.5rem]">
+                  <span className="text-2xl font-light">List Event</span>
+                  <ArrowUpRight size={32} />
                </Link>
-             </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
