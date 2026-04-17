@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config/constants';
+import Cookies from 'js-cookie';
 
 // ─── Axios Instance ───────────────────────────────────────────────────────
 const api = axios.create({
@@ -14,7 +15,7 @@ const api = axios.create({
 // ─── Request Interceptor ──────────────────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = Cookies.get('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -67,15 +68,15 @@ api.interceptors.response.use(
         );
 
         const newToken = data.accessToken;
-        localStorage.setItem('accessToken', newToken);
+        Cookies.set('accessToken', newToken, { expires: 7 });
         api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
         processQueue(null, newToken);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('user');
+        Cookies.remove('accessToken');
+        Cookies.remove('user');
         // Redirect to login if we're not already there
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';

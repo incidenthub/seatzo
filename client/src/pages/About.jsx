@@ -2,131 +2,154 @@ import React from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import Navbar from '../components/UI/Navbar';
 import Footer from '../components/UI/Footer';
+import { ArrowUpRight, ShieldCheck, Zap, Globe } from 'lucide-react';
 
 const About = () => {
   const { scrollYProgress } = useScroll();
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.2]);
-  const y = useTransform(scrollYProgress, [0, 1], [0, -100]);
+  const scale = useTransform(scrollYProgress, [0, 0.5], [1.1, 1]);
+  const opacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
 
-  const timeline = [
-    { year: '2020', title: 'The Genesis', desc: 'Started as a small team of three in a garage, driven by a passion for clean code and beautiful design.' },
-    { year: '2022', title: 'Global Reach', desc: 'Expanded our operations to three continents, partnering with Fortune 500 companies and innovative startups.' },
-    { year: '2024', title: 'Design Innovation', desc: 'Launched our proprietary design framework, setting new standards for digital accessibility and performance.' },
-    { year: '2026', title: 'Award Winning', desc: 'Recognized by Awwwards and CSS Design Awards as the most influential design studio of the year.' },
+  const stats = [
+    { label: 'Moments Curated', value: '1.2M+', icon: <Zap size={16} /> },
+    { label: 'Global Cities', value: '42', icon: <Globe size={16} /> },
+    { label: 'Secure Access', value: '100%', icon: <ShieldCheck size={16} /> },
   ];
 
-  const team = [
-    { name: 'Alex Rivers', role: 'Creative Director', img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=400' },
-    { name: 'Sarah Chen', role: 'Head of Product', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=400' },
-    { name: 'Marcus Bell', role: 'Lead Developer', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400' },
-    { name: 'Elena Frost', role: 'UX Research', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=400' },
+  const philosophy = [
+    { 
+      year: '2020', 
+      title: 'The Disruption', 
+      desc: 'Seatzo was born from a simple realization: ticketing felt like a transaction, but live events are a transformation.' 
+    },
+    { 
+      year: '2023', 
+      title: 'The Architecture', 
+      desc: 'We built a proprietary engine that prioritizes the fan journey, eliminating the friction between desire and entry.' 
+    },
+    { 
+      year: '2026', 
+      title: 'The Frontier', 
+      desc: 'Today, we stand as the premier gateway for the world’s most sought-after cultural moments.' 
+    },
+  ];
+
+  const visionaries = [
+    { name: 'Alex Rivers', role: 'Chief Curator', img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=600' },
+    { name: 'Sarah Chen', role: 'Experience Lead', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=600' },
+    { name: 'Marcus Bell', role: 'Platform Architect', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=600' },
+    { name: 'Elena Frost', role: 'Cultural Liaison', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=600' },
   ];
 
   return (
-    <div className="bg-white">
+    <div className="bg-[#FAF9F6] text-stone-950 selection:bg-[#DC3558] selection:text-white">
       <Navbar />
       
-      {/* Hero Header */}
-      <section className="pt-40 pb-20 bg-slate-50 overflow-hidden">
-        <div className="section-container">
-          <motion.h1 
-            initial={{ opacity: 0, y: 40 }}
+      {/* Hero: The Statement */}
+      <section className="min-h-screen pt-40 flex flex-col justify-between px-6 md:px-12 pb-20">
+        <div className="max-w-[1600px] mx-auto w-full">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-6xl md:text-9xl mb-12"
+            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
           >
-            We are <span className="text-primary-600">Designers</span> & <span className="text-slate-400 italic">Builders</span>.
-          </motion.h1>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-start">
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-              className="text-2xl text-slate-600 leading-relaxed"
-            >
-              We believe that every digital touchpoint is an opportunity to create a lasting connection. Our approach is human-centric, data-driven, and artistically inspired.
-            </motion.p>
-            <div className="flex flex-col gap-8">
-              <div className="flex gap-12">
-                <div>
-                  <p className="text-4xl font-bold text-slate-900">150+</p>
-                  <p className="text-slate-500">Projects Completed</p>
+            <h1 className="text-[14vw] md:text-[10vw] leading-[0.85] font-light tracking-tighter mb-12">
+              WE ARE THE <br /> 
+              <span className="italic font-serif">FRONTIER</span> OF LIVE<span className="text-[#DC3558]">.</span>
+            </h1>
+          </motion.div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-end">
+            <div className="lg:col-span-5">
+              <p className="text-xl md:text-2xl font-medium leading-tight text-stone-600">
+                Seatzo isn't just a platform; it's a cultural filter. We bridge the gap between elite organizers and the global audience that fuels the scene.
+              </p>
+            </div>
+            <div className="lg:col-span-7 flex flex-wrap gap-12 lg:justify-end">
+              {stats.map((stat, i) => (
+                <div key={i} className="flex flex-col gap-2">
+                  <span className="text-[#DC3558] flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
+                    {stat.icon} {stat.label}
+                  </span>
+                  <span className="text-5xl font-light tracking-tighter">{stat.value}</span>
                 </div>
-                <div>
-                  <p className="text-4xl font-bold text-slate-900">24</p>
-                  <p className="text-slate-500">Design Awards</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Parallax Image Section */}
-      <section className="h-[60vh] overflow-hidden relative">
+      {/* Immersive Parallax View */}
+      <section className="h-screen overflow-hidden relative mx-6 md:mx-12 rounded-[3rem]">
         <motion.img 
-          style={{ scale, y }}
-          src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=2000" 
-          alt="Our Studio"
-          className="w-full h-full object-cover"
+          style={{ scale }}
+          src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=2000" 
+          className="w-full h-full object-cover grayscale brightness-75"
         />
-        <div className="absolute inset-0 bg-slate-900/20" />
+        <motion.div 
+          style={{ opacity }}
+          className="absolute inset-0 flex items-center justify-center"
+        >
+          <div className="w-32 h-32 rounded-full border border-white/30 backdrop-blur-md flex items-center justify-center animate-spin-slow">
+             <ArrowUpRight className="text-white transform -rotate-45" size={40} />
+          </div>
+        </motion.div>
       </section>
 
-      {/* Timeline Section */}
-      <section className="py-32 section-container">
-        <h2 className="text-4xl md:text-5xl mb-20 text-center">Our Journey</h2>
-        <div className="relative border-l-2 border-slate-100 ml-4 md:ml-0 md:left-1/2 md:-translate-x-1/2">
-          {timeline.map((item, idx) => (
+      {/* Philosophy: Vertical List */}
+      <section className="py-40 px-6 md:px-12 max-w-[1600px] mx-auto">
+        <div className="flex flex-col gap-20">
+          <h2 className="text-[8px] font-black uppercase tracking-[0.5em] text-[#DC3558]">Our Evolution</h2>
+          {philosophy.map((item, i) => (
             <motion.div 
-              key={idx}
-              initial={{ opacity: 0, x: idx % 2 === 0 ? -50 : 50 }}
+              key={i}
+              initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              className={`mb-20 relative md:w-1/2 ${idx % 2 === 0 ? 'md:pr-16 md:text-right md:ml-0' : 'md:pl-16 md:ml-auto'}`}
+              viewport={{ once: true }}
+              className="grid grid-cols-1 md:grid-cols-12 gap-8 border-b border-stone-200 pb-20 group"
             >
-              <div className={`absolute top-0 w-6 h-6 bg-primary-600 rounded-full border-4 border-white shadow-md ${idx % 2 === 0 ? '-left-3.5 md:-right-3 md:left-auto' : '-left-3.5 md:-left-3'}`} />
-              <span className="text-primary-600 font-bold text-xl mb-2 block">{item.year}</span>
-              <h3 className="text-2xl font-bold mb-4">{item.title}</h3>
-              <p className="text-slate-500 leading-relaxed">{item.desc}</p>
+              <div className="md:col-span-2">
+                <span className="text-4xl font-serif italic text-stone-300 group-hover:text-[#DC3558] transition-colors duration-500">{item.year}</span>
+              </div>
+              <div className="md:col-span-4">
+                <h3 className="text-3xl font-bold tracking-tight uppercase">{item.title}</h3>
+              </div>
+              <div className="md:col-span-6">
+                <p className="text-lg text-stone-500 font-medium max-w-xl leading-relaxed">
+                  {item.desc}
+                </p>
+              </div>
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* Team Section */}
-      <section className="py-32 bg-slate-50">
-        <div className="section-container">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
-            <div>
-              <h2 className="text-4xl md:text-5xl mb-4">Meet the Visionaries</h2>
-              <p className="text-slate-500 text-lg max-w-md">The talented people who make the magic happen every single day.</p>
-            </div>
+      {/* The Collective (Team) */}
+      <section className="py-40 bg-stone-950 text-white rounded-t-[4rem]">
+        <div className="px-6 md:px-12 max-w-[1600px] mx-auto">
+          <div className="mb-24">
+            <h2 className="text-6xl font-light tracking-tighter mb-4">The Collective</h2>
+            <p className="text-stone-400 font-medium uppercase tracking-widest text-xs">Curating the future of access</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {team.map((member, idx) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {visionaries.map((member, i) => (
               <motion.div 
-                key={idx}
+                key={i}
                 whileHover={{ y: -10 }}
-                className="group relative"
+                className="group flex flex-col"
               >
-                <div className="relative overflow-hidden rounded-2xl aspect-[3/4] mb-6">
+                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-6">
                   <img 
                     src={member.img} 
                     alt={member.name}
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 group-hover:rotate-1"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-6">
-                    <div className="flex space-x-4">
-                      <a href="#" className="text-white hover:text-primary-400">Tw</a>
-                      <a href="#" className="text-white hover:text-primary-400">Li</a>
-                    </div>
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
+                    <button className="px-6 py-2 border border-white rounded-full text-[10px] font-bold uppercase tracking-widest">Connect</button>
                   </div>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900">{member.name}</h3>
-                <p className="text-slate-500">{member.role}</p>
+                <h3 className="text-xl font-bold tracking-tight">{member.name}</h3>
+                <p className="text-xs font-bold uppercase tracking-widest text-[#DC3558] mt-1">{member.role}</p>
               </motion.div>
             ))}
           </div>

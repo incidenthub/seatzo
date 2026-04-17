@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { Users, Calendar, DollarSign, ArrowRight, Shield, ChevronDown } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { Users, Calendar, DollarSign, ArrowRight, Shield, ChevronDown, LogOut, Home as HomeIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
-import Navbar from '../components/UI/Navbar';
-import Footer from '../components/UI/Footer';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import adminService from '../services/admin.service';
+import { logoutSuccess } from '../store/slices/authSlice';
+import Cookies from 'js-cookie';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { user, token } = useSelector((state) => state.auth);
+
+  const handleLogout = () => {
+    Cookies.remove('accessToken');
+    Cookies.remove('user');
+    dispatch(logoutSuccess());
+    navigate('/');
+  };
 
   const [users, setUsers] = useState([]);
   const [events, setEvents] = useState([]);
@@ -65,10 +73,33 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
+    <div className="min-h-screen bg-white selection:bg-[#DC3558] selection:text-white">
+      {/* Standalone Admin Nav */}
+      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-stone-100 px-8 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-8">
+          <Link to="/" className="text-xl font-black tracking-tighter">
+            SEATZO<span className="text-[#DC3558]">.</span>
+          </Link>
+          <div className="h-4 w-px bg-stone-200 hidden md:block" />
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-400 hidden md:block">
+            Platform Protocol
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <Link to="/" className="p-3 text-stone-400 hover:text-black transition-colors rounded-xl hover:bg-stone-50">
+            <HomeIcon size={18} />
+          </Link>
+          <button 
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-5 py-2.5 bg-stone-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#DC3558] transition-all"
+          >
+            <LogOut size={14} /> Exit Admin
+          </button>
+        </div>
+      </nav>
 
-      <main className="pt-40 max-w-[1400px] mx-auto px-6 pb-40">
+      <main className="pt-32 max-w-[1400px] mx-auto px-6 pb-40">
         {/* Header */}
         <header className="mb-20">
           <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
@@ -221,7 +252,6 @@ const AdminDashboard = () => {
         )}
       </main>
 
-      <Footer />
     </div>
   );
 };

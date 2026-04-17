@@ -1,215 +1,196 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Send, MapPin, Phone, Mail, Globe } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, MapPin, Phone, Mail, ArrowUpRight, CheckCircle2 } from 'lucide-react';
 import Navbar from '../components/UI/Navbar';
 import Footer from '../components/UI/Footer';
 
 const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: '',
-  });
+  const [formData, setFormData] = useState({ name: '', email: '', subject: 'General Inquiry', message: '' });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.name) newErrors.name = 'Name is required';
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    if (!formData.message) newErrors.message = 'Message is required';
+    if (!formData.name) newErrors.name = 'Identification required';
+    if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Valid digital address required';
+    if (!formData.message) newErrors.message = 'Inquiry details required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (validate()) {
       setIsSubmitting(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       setIsSubmitting(false);
       setIsSubmitted(true);
-      setFormData({ name: '', email: '', subject: '', message: '' });
     }
   };
 
   return (
-    <div className="bg-white">
+    <div className="bg-[#FAF9F6] text-stone-950 selection:bg-[#DC3558] selection:text-white min-h-screen">
       <Navbar />
       
-      <section className="pt-40 pb-32 bg-slate-50">
-        <div className="section-container">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-start">
-            {/* Contact Info */}
+      <main className="pt-40 pb-32 max-w-[1600px] mx-auto px-6 md:px-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-24">
+          
+          {/* --- Left: Editorial Info --- */}
+          <div className="lg:col-span-5 flex flex-col justify-between">
             <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1 }}
             >
-              <h1 className="text-5xl md:text-7xl font-extrabold mb-8 text-slate-900 leading-tight">
-                Let's Start a <span className="text-primary-600 underline decoration-primary-200 decoration-8 underline-offset-8">Project</span> Together.
+              <h1 className="text-[10vw] lg:text-[6vw] leading-[0.85] font-light tracking-tighter mb-12">
+                TALK TO THE <br />
+                <span className="italic font-serif">CONCIERGE</span>
+                <span className="text-[#DC3558]">.</span>
               </h1>
-              <p className="text-xl text-slate-500 mb-12 max-w-lg">
-                Have an idea that needs a creative touch? We're ready to help you build something extraordinary.
+              
+              <p className="text-xl text-stone-500 font-medium mb-16 max-w-md leading-snug">
+                Whether you're an organizer seeking a stage or a fan seeking the front row, our team is standing by to bridge the gap.
               </p>
 
-              <div className="space-y-8">
+              <div className="space-y-10">
                 {[
-                  { icon: <Mail className="text-primary-600" />, label: 'Email Us', val: 'hello@designstudio.com' },
-                  { icon: <Phone className="text-primary-600" />, label: 'Call Us', val: '+1 (555) 000-1234' },
-                  { icon: <MapPin className="text-primary-600" />, label: 'Visit Us', val: '123 Creative Blvd, New York, NY 10001' },
+                  { icon: <Mail size={18} />, label: 'Digital', val: 'concierge@seatzo.com' },
+                  { icon: <Phone size={18} />, label: 'Direct', val: '+1 (212) 555-0199' },
+                  { icon: <MapPin size={18} />, label: 'Studio', val: '401 Broadway, New York, NY' },
                 ].map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-6 group">
-                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center group-hover:bg-primary-600 group-hover:text-white transition-all duration-300">
+                  <div key={idx} className="group flex items-start gap-6">
+                    <div className="mt-1 p-3 rounded-full bg-stone-100 text-stone-400 group-hover:bg-[#DC3558] group-hover:text-white transition-all duration-500">
                       {item.icon}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{item.label}</p>
-                      <p className="text-lg font-semibold text-slate-900">{item.val}</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-1">{item.label}</p>
+                      <p className="text-lg font-bold tracking-tight">{item.val}</p>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Mock Map Visualization */}
-              <div className="mt-16 relative rounded-3xl overflow-hidden h-64 bg-slate-200 border-4 border-white shadow-xl">
-                <div className="absolute inset-0 bg-[url('https://api.mapbox.com/styles/v1/mapbox/light-v10/static/-74.006,40.7128,12,0/600x400?access_token=pk.eyJ1IjoicmFzaGlpIiwiYSI6ImNreHd6...') bg-cover bg-center opacity-80" />
-                <div className="absolute inset-0 bg-primary-600/10" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                  <div className="relative">
-                    <div className="absolute -inset-4 bg-primary-600/20 rounded-full animate-ping" />
-                    <div className="relative w-8 h-8 bg-primary-600 rounded-full border-4 border-white shadow-lg flex items-center justify-center text-white">
-                      <MapPin size={16} />
-                    </div>
-                  </div>
-                </div>
-              </div>
             </motion.div>
 
-            {/* Contact Form */}
+            {/* Dynamic Map Visualization (2026 Style) */}
+            <div className="mt-20 relative h-48 rounded-[2rem] overflow-hidden grayscale contrast-125 border border-stone-200 shadow-inner hidden lg:block">
+               <div className="absolute inset-0 bg-stone-200/50 animate-pulse" />
+               <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.4em] text-stone-400">Map Data Syncing...</div>
+               </div>
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-[#DC3558] rounded-full">
+                  <div className="absolute inset-0 bg-[#DC3558] rounded-full animate-ping opacity-50" />
+               </div>
+            </div>
+          </div>
+
+          {/* --- Right: Minimalist Form --- */}
+          <div className="lg:col-span-7">
             <motion.div
-              initial={{ opacity: 0, x: 30 }}
+              initial={{ opacity: 0, x: 40 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="bg-white p-8 md:p-12 rounded-[2rem] shadow-2xl border border-slate-50"
+              transition={{ duration: 1, delay: 0.2 }}
+              className="bg-white p-8 md:p-16 rounded-[3rem] shadow-[0_40px_100px_rgba(0,0,0,0.03)] border border-stone-100"
             >
-              {isSubmitted ? (
-                <div className="text-center py-20">
-                  <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8">
-                    <Send size={40} />
-                  </div>
-                  <h3 className="text-3xl font-bold mb-4">Message Sent!</h3>
-                  <p className="text-slate-500 mb-8">Thank you for reaching out. Our team will get back to you within 24 hours.</p>
-                  <button onClick={() => setIsSubmitted(false)} className="btn-secondary">Send Another Message</button>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Full Name</label>
-                      <input 
-                        type="text" 
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        className={`w-full px-6 py-4 bg-slate-50 border ${errors.name ? 'border-red-500' : 'border-slate-100'} rounded-xl outline-none focus:bg-white focus:ring-4 focus:ring-primary-100 transition-all`}
-                        placeholder="John Doe"
-                      />
-                      {errors.name && <p className="mt-2 text-sm text-red-500 font-medium">{errors.name}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
-                      <input 
-                        type="email" 
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className={`w-full px-6 py-4 bg-slate-50 border ${errors.email ? 'border-red-500' : 'border-slate-100'} rounded-xl outline-none focus:bg-white focus:ring-4 focus:ring-primary-100 transition-all`}
-                        placeholder="john@example.com"
-                      />
-                      {errors.email && <p className="mt-2 text-sm text-red-500 font-medium">{errors.email}</p>}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Subject</label>
-                    <input 
-                      type="text" 
-                      name="subject"
-                      value={formData.subject}
-                      onChange={handleChange}
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:bg-white focus:ring-4 focus:ring-primary-100 transition-all"
-                      placeholder="Project Inquiry"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Message</label>
-                    <textarea 
-                      name="message"
-                      rows="5"
-                      value={formData.message}
-                      onChange={handleChange}
-                      className={`w-full px-6 py-4 bg-slate-50 border ${errors.message ? 'border-red-500' : 'border-slate-100'} rounded-xl outline-none focus:bg-white focus:ring-4 focus:ring-primary-100 transition-all resize-none`}
-                      placeholder="Tell us about your project..."
-                    ></textarea>
-                    {errors.message && <p className="mt-2 text-sm text-red-500 font-medium">{errors.message}</p>}
-                  </div>
-
-                  <button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className="w-full btn-primary py-5 flex items-center justify-center gap-3 disabled:opacity-70 group"
+              <AnimatePresence mode="wait">
+                {isSubmitted ? (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-center py-24"
                   >
-                    {isSubmitting ? (
-                      <span className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        Send Message <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
+                    <div className="w-24 h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-10">
+                      <CheckCircle2 size={48} strokeWidth={1.5} />
+                    </div>
+                    <h3 className="text-4xl font-light tracking-tighter mb-6">Inquiry Received</h3>
+                    <p className="text-stone-500 font-medium mb-10">Our concierge team will respond within 4 hours.</p>
+                    <button 
+                      onClick={() => setIsSubmitted(false)}
+                      className="px-10 py-4 bg-stone-950 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-[#DC3558] transition-all"
+                    >
+                      New Submission
+                    </button>
+                  </motion.div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                      <div className="relative border-b border-stone-100 focus-within:border-stone-950 transition-colors">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-stone-400">Identification</label>
+                        <input 
+                          type="text" 
+                          name="name"
+                          value={formData.name}
+                          onChange={(e) => setFormData({...formData, name: e.target.value})}
+                          className="w-full py-4 bg-transparent outline-none font-bold placeholder:text-stone-200"
+                          placeholder="Your Name"
+                        />
+                        {errors.name && <p className="absolute -bottom-6 text-[9px] text-red-500 font-bold uppercase">{errors.name}</p>}
+                      </div>
+
+                      <div className="relative border-b border-stone-100 focus-within:border-stone-950 transition-colors">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-stone-400">Digital Address</label>
+                        <input 
+                          type="email" 
+                          name="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({...formData, email: e.target.value})}
+                          className="w-full py-4 bg-transparent outline-none font-bold placeholder:text-stone-200"
+                          placeholder="Email@domain.com"
+                        />
+                        {errors.email && <p className="absolute -bottom-6 text-[9px] text-red-500 font-bold uppercase">{errors.email}</p>}
+                      </div>
+                    </div>
+
+                    <div className="border-b border-stone-100">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-stone-400">Nature of Inquiry</label>
+                      <select 
+                        className="w-full py-4 bg-transparent outline-none font-bold appearance-none cursor-pointer"
+                        onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                      >
+                        <option>General Inquiry</option>
+                        <option>Organizer Partnerships</option>
+                        <option>VIP Backstage Access</option>
+                        <option>Technical Support</option>
+                      </select>
+                    </div>
+
+                    <div className="relative">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-stone-400">Inquiry Details</label>
+                      <textarea 
+                        rows="4"
+                        value={formData.message}
+                        onChange={(e) => setFormData({...formData, message: e.target.value})}
+                        className="w-full py-4 bg-transparent border-b border-stone-100 focus:border-stone-950 outline-none font-bold resize-none placeholder:text-stone-200 transition-colors"
+                        placeholder="What are we looking for?"
+                      />
+                      {errors.message && <p className="absolute -bottom-6 text-[9px] text-red-500 font-bold uppercase">{errors.message}</p>}
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={isSubmitting}
+                      className="group w-full py-6 bg-stone-950 text-white rounded-[2rem] flex items-center justify-center gap-4 hover:bg-[#DC3558] transition-all duration-500 disabled:opacity-50"
+                    >
+                      {isSubmitting ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <span className="text-xs font-bold uppercase tracking-[0.3em]">Initialize Transmission</span>
+                          <ArrowUpRight size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </AnimatePresence>
             </motion.div>
           </div>
         </div>
-      </section>
+      </main>
 
       <Footer />
     </div>
   );
 };
-
-// Internal component for reuse
-const ArrowRight = ({ size, className }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <line x1="5" y1="12" x2="19" y2="12"></line>
-    <polyline points="12 5 19 12 12 19"></polyline>
-  </svg>
-);
 
 export default Contact;
