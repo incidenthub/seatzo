@@ -5,8 +5,7 @@ import { Users, Calendar, DollarSign, ArrowRight, Shield, ChevronDown, LogOut, H
 import { motion } from 'framer-motion';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import adminService from '../services/admin.service';
-import { logoutSuccess } from '../store/slices/authSlice';
-import Cookies from 'js-cookie';
+import { logoutStart } from '../store/slices/authSlice';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -14,9 +13,7 @@ const AdminDashboard = () => {
   const { user, token } = useSelector((state) => state.auth);
 
   const handleLogout = () => {
-    Cookies.remove('accessToken');
-    Cookies.remove('user');
-    dispatch(logoutSuccess());
+    dispatch(logoutStart());
     navigate('/');
   };
 
@@ -99,7 +96,7 @@ const AdminDashboard = () => {
         </div>
       </nav>
 
-      <main className="pt-32 max-w-[1400px] mx-auto px-6 pb-40">
+      <main className="pt-32 max-w-350 mx-auto px-6 pb-40">
         {/* Header */}
         <header className="mb-20">
           <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
