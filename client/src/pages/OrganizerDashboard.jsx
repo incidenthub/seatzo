@@ -5,8 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { motion } from 'framer-motion';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import eventService from '../services/event.service';
-import { logoutSuccess } from '../store/slices/authSlice';
-import Cookies from 'js-cookie';
+import { logoutStart } from '../store/slices/authSlice';
 
 const OrganizerDashboard = () => {
   const navigate = useNavigate();
@@ -14,9 +13,7 @@ const OrganizerDashboard = () => {
   const { user, token } = useSelector((state) => state.auth);
 
   const handleLogout = () => {
-    Cookies.remove('accessToken');
-    Cookies.remove('user');
-    dispatch(logoutSuccess());
+    dispatch(logoutStart());
     navigate('/login');
   };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { CreditCard, ArrowLeft, ShieldCheck, Clock } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { CreditCard, ArrowLeft, ShieldCheck, Info, ChevronRight, Ticket } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import stripePromise from '../config/stripe';
 import Navbar from '../components/UI/Navbar';
@@ -11,7 +11,7 @@ import useSeatPolling from '../hooks/useSeatPolling';
 import bookingService from '../services/booking.service';
 import paymentService from '../services/payment.service';
 
-// ─── Stripe Checkout Form ─────────────────────────────────────────────────────
+// ─── Stripe Checkout Form (BMS Style) ─────────────────────────────────────────
 const CheckoutForm = ({ booking, onSuccess, onError }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -21,30 +21,17 @@ const CheckoutForm = ({ booking, onSuccess, onError }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!stripe || !elements) return;
-
     setIsProcessing(true);
     setError(null);
 
     try {
-      // 1. Create payment intent via our API
       const idempotencyKey = crypto.randomUUID();
-      const paymentRes = await paymentService.createPayment(
-        booking._id,
-        booking.totalAmount,
-        idempotencyKey
-      );
-
+      const paymentRes = await paymentService.createPayment(booking._id, booking.totalAmount, idempotencyKey);
       const { clientSecret } = paymentRes.data.data;
 
-      // 2. Confirm card payment with Stripe.js
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
-        clientSecret,
-        {
-          payment_method: {
-            card: elements.getElement(CardElement),
-          },
-        }
-      );
+      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card: elements.getElement(CardElement) },
+      });
 
       if (stripeError) {
         setError(stripeError.message);
@@ -53,70 +40,42 @@ const CheckoutForm = ({ booking, onSuccess, onError }) => {
         onSuccess?.(paymentIntent, paymentRes.data.data.paymentId);
       }
     } catch (err) {
-      const msg = err.response?.data?.error?.message || err.response?.data?.error || err.message || 'Payment failed';
-      setError(msg);
-      onError?.(msg);
+      setError(err.message || 'Payment failed');
+      onError?.(err.message);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const cardStyle = {
-    style: {
-      base: {
-        fontSize: '18px',
-        fontWeight: '500',
-        color: '#111827',
-        fontFamily: 'inherit',
-        '::placeholder': { color: '#d1d5db' },
-      },
-      invalid: { color: '#ef4444' },
-    },
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-12">
-      <div className="group">
-        <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-6 group-focus-within:text-black">
-          Card Details
-        </label>
-        <div className="pb-4 border-b border-stone-100 focus-within:border-black transition-all">
-          <CardElement options={cardStyle} />
+    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+      <div className="mb-8">
+        <h3 className="text-sm font-bold text-stone-700 uppercase mb-4 flex items-center gap-2">
+          <CreditCard size={18} className="text-[#F84464]" /> Debit / Credit Card
+        </h3>
+        <div className="p-4 border border-stone-300 rounded-md bg-stone-50 focus-within:border-[#F84464] transition-all">
+          <CardElement options={{
+            style: {
+              base: { fontSize: '16px', color: '#333', '::placeholder': { color: '#aab7c4' } },
+              invalid: { color: '#F84464' },
+            }
+          }} />
         </div>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100 uppercase tracking-widest">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4 text-xs font-semibold text-[#F84464]">{error}</div>}
 
-      <div className="pt-4">
-        <button
-          type="submit"
-          disabled={isProcessing || !stripe}
-          className="w-full group py-6 bg-black text-white rounded-full font-black uppercase tracking-widest text-xs flex items-center justify-center gap-4 hover:gap-6 transition-all disabled:opacity-50"
-        >
-          {isProcessing ? 'Authenticating' : `Authorize ₹${booking.totalAmount}`}
-          {isProcessing ? (
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full"
-            />
-          ) : <CreditCard size={18} />}
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={isProcessing || !stripe}
+        className="w-full py-4 bg-[#F84464] text-white rounded-md font-bold text-sm shadow-lg hover:bg-[#d63a56] transition-colors disabled:opacity-50"
+      >
+        {isProcessing ? 'Processing...' : `Make Payment`}
+      </button>
 
-      <div className="flex items-center gap-4 py-8 border-t border-stone-50">
-        <div className="w-10 h-10 rounded-full bg-stone-50 flex items-center justify-center text-stone-300">
-          <ShieldCheck size={20} />
-        </div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 leading-relaxed">
-          Payment encrypted via Stripe Secure™ • PCI DSS Level 1 Certified <br />
-          Atomic seating lock active for 5:00 minutes.
-        </p>
-      </div>
+      <p className="mt-4 text-[11px] text-stone-500 text-center">
+        By clicking "Make Payment" you agree to the Terms & Conditions
+      </p>
     </form>
   );
 };
@@ -125,181 +84,127 @@ const CheckoutForm = ({ booking, onSuccess, onError }) => {
 const BookingPage = () => {
   const { id: eventId, bookingId: existingBookingId } = useParams();
   const navigate = useNavigate();
-  const { seats, pricing, viewers, loading, refresh } = useSeatPolling(eventId);
+  const { seats, viewers, loading, refresh } = useSeatPolling(eventId);
 
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [booking, setBooking] = useState(null);
   const [step, setStep] = useState('select'); // 'select' | 'checkout'
   const [error, setError] = useState(null);
-  const [isCreatingBooking, setIsCreatingBooking] = useState(false);
 
-  // If we have an existing bookingId from the URL, load it
-  useEffect(() => {
-    if (existingBookingId) {
-      loadExistingBooking(existingBookingId);
-    }
-  }, [existingBookingId]);
-
-  const loadExistingBooking = async (bId) => {
+  const handleCheckout = async (seats) => {
     try {
-      const res = await bookingService.getBookingById(bId);
-      setBooking(res.data.data);
-      setStep('checkout');
-    } catch (err) {
-      setError('Failed to load booking');
-    }
-  };
-
-  const handleCheckout = async (seats, total) => {
-    setIsCreatingBooking(true);
-    setError(null);
-
-    try {
-      // Create booking via API with idempotency key
       const idempotencyKey = crypto.randomUUID();
       const seatIds = seats.map(s => s._id);
-
       const res = await bookingService.createBooking(eventId, seatIds, idempotencyKey);
       setBooking(res.data.data);
       setStep('checkout');
     } catch (err) {
-      const msg = err.response?.data?.error?.message || err.response?.data?.error || 'Failed to create booking';
-      setError(msg);
-    } finally {
-      setIsCreatingBooking(false);
+      setError('Reservation failed. Seats might have been taken.');
     }
   };
 
-  const handlePaymentSuccess = (paymentIntent, paymentId) => {
-    navigate(`/booking-confirmation/${booking._id}`);
-  };
-
-  const handlePaymentError = (message) => {
-    setError(message);
-  };
-
-  const totalAmount = selectedSeats.reduce((sum, s) => sum + (s.currentPrice || s.price || 0), 0);
-  const fees = Math.round(totalAmount * 0.12);
-  const finalTotal = totalAmount + fees;
-
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#F2F2F2]">
       <Navbar />
 
-      <main className="pt-40 max-w-[1400px] mx-auto px-6 pb-40">
+      {/* Progress Header */}
+      <div className="bg-white border-b border-stone-200 pt-20">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-stone-600 hover:text-[#F84464] font-medium text-sm">
+            <ArrowLeft size={16} /> Back
+          </button>
+          <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider">
+            <span className={step === 'select' ? 'text-[#F84464]' : 'text-stone-400'}>01 SEAT SELECTION</span>
+            <ChevronRight size={14} className="text-stone-300" />
+            <span className={step === 'checkout' ? 'text-[#F84464]' : 'text-stone-400'}>02 PAYMENT</span>
+          </div>
+          <div className="w-20" /> {/* Spacer */}
+        </div>
+      </div>
+
+      <main className="max-w-6xl mx-auto px-6 py-10">
         {step === 'select' ? (
-          <>
-            <header className="mb-8">
-              <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] mb-8">
-                <ArrowLeft size={14} /> Back to event
-              </button>
-              <h1 className="text-6xl font-black tracking-tighter uppercase italic">Select Seats.</h1>
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden p-8 border border-stone-200">
+            <div className="flex justify-between items-end mb-10">
+              <div>
+                <h1 className="text-2xl font-bold text-stone-800">Choose your seats</h1>
+                <p className="text-xs text-stone-500 flex items-center gap-1 mt-1">
+                  <Info size={14} /> Screen this way
+                </p>
+              </div>
               {viewers > 0 && (
-                <p className="text-stone-400 font-bold uppercase tracking-[0.2em] text-xs mt-4 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  {viewers} people viewing this event right now
-                </p>
-              )}
-            </header>
-
-            {error && (
-              <div className="mb-8 p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100 uppercase tracking-widest">
-                {error}
-              </div>
-            )}
-
-            {loading ? (
-              <div className="py-40 text-center text-stone-400 font-bold uppercase tracking-widest text-xs">
-                Loading seat map...
-              </div>
-            ) : (
-              <SeatGrid
-                eventId={eventId}
-                seats={seats}
-                refresh={refresh}
-                onSelectionChange={setSelectedSeats}
-                onCheckout={handleCheckout}
-              />
-            )}
-
-            {isCreatingBooking && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white p-12 rounded-[2rem] text-center">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-8 h-8 border-2 border-stone-200 border-t-black rounded-full mx-auto mb-4"
-                  />
-                  <p className="text-xs font-black uppercase tracking-widest">Creating Reservation...</p>
+                <div className="bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-[10px] font-bold border border-orange-100 animate-pulse">
+                  {viewers} PEOPLE ARE LOOKING AT THIS RIGHT NOW
                 </div>
-              </div>
-            )}
-          </>
+              )}
+            </div>
+
+            <SeatGrid
+              eventId={eventId}
+              seats={seats}
+              refresh={refresh}
+              onSelectionChange={setSelectedSeats}
+              onCheckout={handleCheckout}
+            />
+          </div>
         ) : (
-          <div className="flex flex-col lg:flex-row gap-24 items-start">
-            {/* Left: Checkout Form */}
-            <div className="w-full lg:w-[60%] order-2 lg:order-1">
-              <header className="mb-16">
-                <button onClick={() => setStep('select')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] mb-8">
-                  <ArrowLeft size={14} /> Back to seat selection
-                </button>
-                <h1 className="text-6xl font-black tracking-tighter uppercase italic">Secure Checkout.</h1>
-              </header>
-
-              {error && (
-                <div className="mb-8 p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100 uppercase tracking-widest">
-                  {error}
-                </div>
-              )}
-
-              <Elements stripe={stripePromise}>
-                <CheckoutForm
-                  booking={booking}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                />
-              </Elements>
+          <div className="flex flex-col lg:flex-row gap-8 items-start">
+            {/* Left: Payment Options */}
+            <div className="w-full lg:w-2/3 space-y-4">
+              <div className="bg-[#333545] text-white p-4 rounded-t-lg font-bold text-sm uppercase flex items-center gap-2">
+                <ShieldCheck size={18} className="text-green-400" /> Payment Options
+              </div>
+              <CheckoutForm 
+                booking={booking} 
+                onSuccess={() => navigate(`/booking-confirmation/${booking._id}`)} 
+                onError={setError}
+              />
             </div>
 
-            {/* Right: Summary */}
-            <div className="w-full lg:w-[40%] bg-stone-50 p-12 lg:p-16 rounded-[3rem] order-1 lg:order-2">
-              <h2 className="text-sm font-black uppercase tracking-[0.2em] mb-12">Reservation Summary</h2>
-
-              <div className="space-y-8">
-                {booking?.seats?.map((seat, i) => (
-                  <div key={seat._id || i} className="flex justify-between items-center group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-white border border-stone-100 flex items-center justify-center font-black group-hover:bg-black group-hover:text-white transition-colors">
-                        {seat.seatNumber || `S${i + 1}`}
+            {/* Right: Order Summary (The "Ticket" look) */}
+            <aside className="w-full lg:w-1/3">
+              <div className="bg-white rounded-lg shadow-sm border border-stone-200 overflow-hidden">
+                <div className="p-5 border-b border-dashed border-stone-200 bg-stone-50">
+                  <h2 className="text-[#F84464] font-bold text-xs uppercase tracking-widest mb-4">Order Summary</h2>
+                  <div className="space-y-3">
+                    {booking?.seats?.map((seat, i) => (
+                      <div key={i} className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-stone-700">
+                          {seat.section || 'Classic'} - {seat.seatNumber}
+                        </span>
+                        <span className="text-sm font-bold">₹{seat.price?.toFixed(2)}</span>
                       </div>
-                      <span className="font-bold text-lg">{seat.section || 'Standard'}</span>
-                    </div>
-                    <span className="font-bold">₹{seat.price || 0}</span>
+                    ))}
                   </div>
-                ))}
-              </div>
-
-              <div className="mt-12 pt-12 border-t border-stone-200/50 space-y-4">
-                <div className="flex justify-between items-center text-stone-400 text-[10px] font-black uppercase tracking-widest">
-                  <span>Booking ID</span>
-                  <span className="font-mono">{booking?._id?.slice(-8)}</span>
                 </div>
-                <div className="flex justify-between items-center pt-8">
-                  <span className="font-black uppercase tracking-tighter text-xl italic">Total</span>
-                  <span className="text-4xl font-black tracking-tighter">₹{booking?.totalAmount || 0}</span>
+
+                <div className="p-5 space-y-3">
+                  <div className="flex justify-between text-xs text-stone-500">
+                    <span>Convenience Fees</span>
+                    <span>₹{(booking?.totalAmount * 0.1).toFixed(2)}</span>
+                  </div>
+                  <div className="pt-4 mt-2 border-t border-stone-100 flex justify-between items-center">
+                    <span className="text-sm font-bold uppercase">Amount Payable</span>
+                    <span className="text-xl font-extrabold text-[#F84464]">₹{booking?.totalAmount?.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="bg-[#FFF9E5] p-4 flex gap-3 border-t border-stone-100">
+                  <Ticket className="text-orange-500 shrink-0" size={20} />
+                  <p className="text-[10px] text-stone-600 font-medium leading-relaxed">
+                    By proceeding, I express my consent to the T&Cs and the Cancellation Policy of this event.
+                  </p>
                 </div>
               </div>
-
-              <div className="mt-12 bg-white/50 p-6 rounded-2xl border border-stone-200/30">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-stone-400 leading-relaxed text-center">
-                  CONFIRMING THIS RESERVATION WILL INITIATE AN ATOMIC SEAT LOCK. ONCE AUTHORIZED, THE ALLOCATION IS PERMANENT.
-                </p>
+              
+              <div className="mt-6 flex items-center justify-center gap-2 text-stone-400">
+                <ShieldCheck size={16} />
+                <span className="text-[10px] font-bold uppercase">100% Safe & Secure Payments</span>
               </div>
-            </div>
+            </aside>
           </div>
         )}
       </main>
-
       <Footer />
     </div>
   );
