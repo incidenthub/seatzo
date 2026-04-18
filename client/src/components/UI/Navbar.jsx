@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronDown, Menu, X, ArrowUpRight, User, LogOut, LayoutDashboard, Ticket } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { openAuthModal } from '../../store/slices/uiSlice';
+import { logoutStart } from '../../store/slices/authSlice';
 import Cookies from 'js-cookie';
 
 // 2026 Category Meta - Aligned with your specific ticket types
@@ -25,6 +26,12 @@ const Navbar = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
+  const handleLogout = () => {
+    dispatch(logoutStart());
+    setIsProfileOpen(false);
+    navigate('/login');
+  };
+
   const token = Cookies.get('accessToken');
   const user = Cookies.get('user') ? JSON.parse(Cookies.get('user')) : null;
 
@@ -39,13 +46,13 @@ const Navbar = () => {
 
   return (
     <nav
-      className={`fixed top-0 w-full z-[100] transition-all duration-700 ease-[0.16, 1, 0.3, 1] ${
+      className={`fixed top-0 w-full z-100 transition-all duration-700 ease-[0.16, 1, 0.3, 1] ${
         isScrolled 
-          ? 'py-4 bg-[#FAF9F6]/80 backdrop-blur-xl border-b border-black/[0.05]' 
+          ? 'py-4 bg-surface/80 backdrop-blur-xl border-b border-black/5' 
           : 'py-8 bg-transparent'
       }`}
     >
-      <div className="max-w-[1600px] mx-auto px-6 md:px-12 flex items-center justify-between">
+      <div className="max-w-400 mx-auto px-6 md:px-12 flex items-center justify-between">
         
         {/* --- Left: Branding & Core Navigation --- */}
         <div className="flex items-center gap-16">
@@ -75,7 +82,7 @@ const Navbar = () => {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full -left-10 w-[500px] pt-6"
+                    className="absolute top-full -left-10 w-125 pt-6"
                   >
                     <div className="bg-white rounded-3xl shadow-[0_30px_100px_rgba(0,0,0,0.1)] border border-stone-100 p-8 grid grid-cols-2 gap-4">
                       {CATEGORIES.map((cat) => (
@@ -111,7 +118,7 @@ const Navbar = () => {
         <div className="flex items-center gap-8">
           
           {/* Refined Expanding Search */}
-          <div className={`hidden md:flex items-center bg-stone-100/50 rounded-full border border-transparent transition-all duration-500 px-4 ${searchFocused ? 'w-[350px] bg-white border-stone-200 shadow-sm' : 'w-[200px]'}`}>
+          <div className={`hidden md:flex items-center bg-stone-100/50 rounded-full border border-transparent transition-all duration-500 px-4 ${searchFocused ? 'w-87.5 bg-white border-stone-200 shadow-sm' : 'w-50'}`}>
             <Search size={16} className="text-stone-400" />
             <input 
               type="text" 
@@ -188,7 +195,7 @@ const Navbar = () => {
                         </Link>
                       )}
                       <button 
-                        onClick={() => { Cookies.remove('accessToken'); window.location.reload(); }}
+                        onClick={handleLogout}
                         className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl transition-all"
                       >
                         <LogOut size={16} /> Terminate Session
@@ -244,7 +251,7 @@ const Navbar = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: '100%' }}
             transition={menuTransition}
-            className="fixed inset-0 h-screen bg-white z-[200] p-8 flex flex-col"
+            className="fixed inset-0 h-screen bg-white z-200 p-8 flex flex-col"
           >
             <div className="flex justify-between items-center mb-20">
               <span className="text-xl font-bold tracking-tighter">SEATZO<span className="text-[#DC3558]">.</span></span>
@@ -265,7 +272,7 @@ const Navbar = () => {
             </div>
 
             <div className="mt-auto space-y-4">
-               <div className="h-[1px] bg-stone-100 w-full mb-8" />
+               <div className="h-px bg-stone-100 w-full mb-8" />
                <Link to="/organizer-register" className="flex items-center justify-between p-8 bg-stone-950 text-white rounded-[2.5rem]">
                   <span className="text-2xl font-light">List Event</span>
                   <ArrowUpRight size={32} />

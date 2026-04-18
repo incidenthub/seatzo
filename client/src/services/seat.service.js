@@ -5,9 +5,9 @@ const seatService = {
   lockSeats: (eventId, seatIds) =>
     api.post('/seats/lock', { eventId, seatIds }),
 
-  // POST /api/seats/release — release locked seats
+  // DELETE /api/seats/lock — release locked seats
   releaseSeats: (eventId, seatIds) =>
-    api.post('/seats/release', { eventId, seatIds }),
+    api.delete('/seats/lock', { data: { eventId, seatIds } }),
 };
 
 export default seatService;

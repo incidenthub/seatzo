@@ -1,8 +1,6 @@
-// Hero.jsx
 import React, { useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Search, ArrowUpRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, MapPin } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
 import TicketSwarmScene from '../Homepage/TicketSwarm';
 
@@ -12,24 +10,24 @@ const Hero = () => {
     initial: { opacity: 0 },
     animate: { 
       opacity: 1,
-      transition: { staggerChildren: 0.15, delayChildren: 0.5 }
+      transition: { staggerChildren: 0.1, delayChildren: 0.3 }
     }
   };
 
   const itemVars = {
-    initial: { opacity: 0, y: 40 },
+    initial: { opacity: 0, y: 30 },
     animate: { 
       opacity: 1, 
       y: 0, 
-      transition: { duration: 1.2, ease: [0.16, 1, 0.3, 1] } 
+      transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } 
     }
   };
 
   return (
-    <section className="relative min-h-screen flex flex-col justify-center items-center bg-[#FAF9F6] selection:bg-[#DC3558] selection:text-white px-6 overflow-hidden pt-24 pb-12">
+    <section className="relative min-h-[90vh] flex flex-col justify-center items-center bg-[#F5F5F5] selection:bg-[#F84464] selection:text-white px-6 overflow-hidden pt-20 pb-12">
       
-      {/* ─── Part 1: The 3D Ticket Swarm (Background Layer) ─── */}
-      <div className="absolute inset-0 z-0 opacity-80 pointer-events-none">
+      {/* ─── 3D Ticket Swarm (Background Layer) ─── */}
+      <div className="absolute inset-0 z-0 opacity-60 pointer-events-none">
         <Canvas camera={{ position: [0, 0, 10], fov: 35 }}>
           <Suspense fallback={null}>
             <TicketSwarmScene />
@@ -37,66 +35,82 @@ const Hero = () => {
         </Canvas>
       </div>
 
-      {/* Background Subtle Grain Texture */}
-      <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] z-1"></div>
+      {/* Subtle Texture Overlay */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] z-1"></div>
 
-      {/* ─── Part 2: Centered Typographic Anchor (Foreground) ─── */}
+      {/* ─── Main Content (Foreground) ─── */}
       <motion.div 
         variants={containerVars}
         initial="initial"
         animate="animate"
-        className="max-w-7xl mx-auto w-full text-center z-10 flex flex-col items-center gap-16"
+        className="max-w-7xl mx-auto w-full text-center z-10 flex flex-col items-center gap-10"
       >
-        <div className="space-y-6 flex flex-col items-center">
-          <motion.div variants={itemVars} className="flex items-center gap-3">
-             <span className="w-8 h-[1px] bg-[#DC3558]/30"></span>
-             <p className="text-[11px] font-bold uppercase tracking-[0.5em] text-stone-400">
-               Frontier Access — 2026
+        <div className="space-y-4 flex flex-col items-center">
+          <motion.div variants={itemVars} className="flex items-center gap-2">
+             <p className="text-[12px] font-bold uppercase tracking-[0.3em] text-stone-500">
+               It All Starts Here
              </p>
-             <span className="w-8 h-[1px] bg-[#DC3558]/30"></span>
           </motion.div>
           
           <motion.h1 
             variants={itemVars}
-            className="text-[11vw] lg:text-[8vw] font-light leading-[0.85] tracking-tighter text-stone-950 max-w-5xl"
+            className="text-[10vw] lg:text-[7vw] font-bold leading-[0.9] tracking-tight text-stone-900 max-w-6xl"
           >
-            Moments That <br /> 
-            Defy <span className="italic font-serif">Vibrance</span><span className="text-[#DC3558]">.</span>
+            Movies, Music <br /> 
+            & <span className="text-[#F84464]">Unforgettable</span> Stories<span className="text-[#F84464]">.</span>
           </motion.h1>
           
-          <motion.p variants={itemVars} className="text-sm md:text-base text-stone-400 max-w-md leading-relaxed font-medium pt-4">
-             Seatzo verifies entry to the world’s leading cultural, sporting, and entertainment phenomenons.
+          <motion.p variants={itemVars} className="text-sm md:text-lg text-stone-500 max-w-xl leading-relaxed font-medium">
+             From the biggest blockbusters to the most intimate live shows, BookMyShow is your pass to the best entertainment in town.
           </motion.p>
         </div>
 
-        {/* Integrated Minimal Search/CTA */}
-        <motion.div variants={itemVars} className="w-full max-w-xl">
-           <div className="group relative flex items-center bg-white border border-stone-200 rounded-2xl p-2 pl-6 shadow-sm transition-all hover:shadow-xl hover:border-stone-300">
-              <Search size={18} className="text-stone-300 group-hover:text-black transition-colors" />
-              <input 
-                 type="text" 
-                 placeholder="Search Concerts, Sports, Cinema, or Standup..." 
-                 className="w-full bg-transparent px-4 py-4 text-sm outline-none placeholder:text-stone-300 font-medium"
-              />
-              <button className="bg-black text-white px-8 py-4 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#DC3558] transition-colors active:scale-95">
-                 Find Access
+        {/* ─── Search & Location Bar ─── */}
+        <motion.div variants={itemVars} className="w-full max-w-3xl">
+           <div className="group relative flex flex-col md:flex-row items-center bg-white border border-stone-200 rounded-2xl p-2 shadow-xl transition-all hover:border-stone-300">
+              
+              {/* Search Input */}
+              <div className="flex items-center flex-1 w-full pl-4">
+                <Search size={20} className="text-stone-400" />
+                <input 
+                    type="text" 
+                    placeholder="Search for Movies, Events, Plays, Sports and Activities" 
+                    className="w-full bg-transparent px-4 py-4 text-sm md:text-base outline-none placeholder:text-stone-400 font-medium"
+                />
+              </div>
+
+              <div className="hidden md:block w-[1px] h-8 bg-stone-200 mx-2"></div>
+
+              {/* Location Mock (Classic BMS style) */}
+              <div className="flex items-center px-4 py-2 cursor-pointer text-stone-600 hover:text-[#F84464] transition-colors">
+                <MapPin size={18} className="mr-2" />
+                <span className="text-sm font-semibold whitespace-nowrap">Select City</span>
+              </div>
+
+              <button className="w-full md:w-auto bg-[#F84464] text-white px-10 py-4 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-[#d63a56] transition-colors active:scale-95 shadow-lg shadow-[#F84464]/20">
+                  Search
               </button>
            </div>
-           <div className="flex gap-6 mt-5 px-3 text-[10px] font-bold uppercase tracking-widest text-stone-400">
-               {['#Concerts', '#DerbyDay', '#Cannes', '#Apollo'].map(tag => (
-                   <span key={tag} className="cursor-pointer hover:text-black transition-colors">{tag}</span>
+
+           {/* Quick Categories */}
+           <div className="flex flex-wrap justify-center gap-5 mt-6 px-3 text-[11px] font-bold uppercase tracking-widest text-stone-400">
+               {['Movies', 'Stream', 'Events', 'Plays', 'Sports', 'Activities'].map(category => (
+                   <span key={category} className="cursor-pointer hover:text-[#F84464] transition-all border-b-2 border-transparent hover:border-[#F84464] pb-1">
+                     {category}
+                   </span>
                ))}
            </div>
         </motion.div>
       </motion.div>
 
-      {/* ─── Minimalist Bottom Utility Bar ─── */}
+      {/* ─── Bottom Decorative Bar ─── */}
       <motion.div 
-         initial={{ opacity: 0 }}
-         animate={{ opacity: 1 }}
-         transition={{ delay: 1.5 }}
-         className="absolute bottom-10 left-6 right-6 lg:left-12 lg:right-12 z-10 flex flex-wrap justify-between items-center gap-6 border-t border-stone-100 pt-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="absolute bottom-8 left-6 right-6 z-10 flex justify-center border-t border-stone-200/50 pt-6"
       >
+        <p className="text-[10px] text-stone-400 uppercase tracking-widest">Global Entertainment Partner — 2026</p>
       </motion.div>
     </section>
   );

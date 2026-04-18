@@ -10,9 +10,9 @@ const eventService = {
   getEventById: (id) =>
     api.get(`/events/${id}`),
 
-  // GET /api/seats/:eventId — seat map + dynamic pricing + viewer count
+  // GET /api/events/:id/seats — seat map + dynamic pricing + viewer count
   getEventSeats: (id) =>
-    api.get(`/seats/${id}`),
+    api.get(`/events/${id}/seats`),
 
   // ─── Organiser ───────────────────────────────────────────────────────────
   // POST /api/events — create event with sections
