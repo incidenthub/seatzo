@@ -24,8 +24,8 @@ function* loginSaga(action) {
 
 function* registerSaga(action) {
   try {
-    const { name, email, password } = action.payload;
-    const response = yield call(authService.register, name, email, password);
+    const { name, email, password, role } = action.payload;
+    const response = yield call(authService.register, name, email, password, role);
     yield put(registerSuccess(response.data));
   } catch (error) {
     yield put(registerFailure(error.response?.data?.message || 'Registration failed'));
