@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, MapPin, Star, ChevronRight, Filter } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Star, MapPin, Calendar, Clock, Filter, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import eventService from '../services/event.service';
 import Navbar from '../components/UI/Navbar';
@@ -8,151 +8,209 @@ import Footer from '../components/UI/Footer';
 
 const EventListings = () => {
   const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState({ category: '', search: '' });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
 
-  const categories = ['Movies', 'Stream', 'Events', 'Plays', 'Sports', 'Activities'];
+  const categories = [
+    { id: 'all', name: 'All Events', icon: '🎭' },
+    { id: 'movies', name: 'Movies', icon: '🎬' },
+    { id: 'concerts', name: 'Concerts', icon: '🎵' },
+    { id: 'sports', name: 'Sports', icon: '⚽' },
+    { id: 'theatre', name: 'Theatre', icon: '🎭' },
+    { id: 'comedy', name: 'Comedy', icon: '🎤' },
+    { id: 'activities', name: 'Activities', icon: '🎪' }
+  ];
 
   useEffect(() => {
     setIsLoading(true);
-    eventService.getAllEvents(filters)
-      .then(res => setEvents(res.data?.events || []))
+    eventService.getAllEvents()
+      .then(res => {
+        const loadedEvents = res.data?.events || res.data?.data || [];
+        setEvents(loadedEvents);
+        setFilteredEvents(loadedEvents);
+      })
       .finally(() => setIsLoading(false));
-  }, [filters]);
+  }, []);
+
+  useEffect(() => {
+    let filtered = events;
+
+    // Filter by category
+    if (selectedCategory && selectedCategory !== 'all') {
+      filtered = filtered.filter(event =>
+        event.category?.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(event =>
+        event.title?.toLowerCase().includes(searchLower) ||
+        event.category?.toLowerCase().includes(searchLower) ||
+        event.city?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    setFilteredEvents(filtered);
+  }, [selectedCategory, searchTerm, events]);
+
+  const handleCategoryChange = (categoryId) => {
+    setSelectedCategory(categoryId);
+    if (categoryId === 'all') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ category: categoryId });
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] selection:bg-[#F84464] selection:text-white">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
-      {/* ─── Category Quick-Bar ─── */}
-      <div className="bg-white border-b border-stone-200 pt-20 hidden md:block">
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-14">
-          <div className="flex gap-8">
-            {categories.map(cat => (
-              <button 
-                key={cat}
-                onClick={() => setFilters({ ...filters, category: cat.toLowerCase() })}
-                className={`text-sm font-medium transition-colors hover:text-[#F84464] relative py-4 ${
-                  filters.category === cat.toLowerCase() ? 'text-[#F84464]' : 'text-stone-700'
+
+      {/* Header Section */}
+      <div className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {selectedCategory === 'all' ? 'All Events' :
+                 categories.find(cat => cat.id === selectedCategory)?.name || 'Events'}
+              </h1>
+              <p className="text-gray-600">
+                Discover amazing events happening around you
+              </p>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative max-w-md w-full lg:w-auto">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search events..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Category Filters */}
+          <div className="flex flex-wrap gap-2 mt-6 overflow-x-auto">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => handleCategoryChange(category.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                  selectedCategory === category.id
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {cat}
-                {filters.category === cat.toLowerCase() && (
-                  <motion.div layoutId="activeCat" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#F84464]" />
-                )}
+                <span>{category.icon}</span>
+                {category.name}
               </button>
             ))}
-          </div>
-          <div className="flex items-center gap-4 text-xs font-bold text-stone-500 uppercase tracking-wider">
-            <span>List Your Show</span>
-            <span>Corporates</span>
-            <span>Offers</span>
-            <span>Gift Cards</span>
           </div>
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-6 md:px-12 py-12">
-        
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-          <h2 className="text-2xl font-bold text-stone-900">
-            {filters.category ? `${filters.category.charAt(0).toUpperCase() + filters.category.slice(1)} in Your City` : 'Recommended Events'}
-          </h2>
-          <div className="flex items-center gap-2 text-[#F84464] font-semibold text-sm cursor-pointer group">
-            See All <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Results Count */}
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-gray-600">
+            {isLoading ? 'Loading...' : `${filteredEvents.length} events found`}
+          </p>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          
-          {/* ─── Sidebar Filters (BMS Style) ─── */}
-          <aside className="hidden lg:block w-64 shrink-0 space-y-4">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <Filter size={18} /> Filters
-            </h3>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-stone-200">
-              <p className="font-bold text-sm text-[#F84464] mb-3">Languages</p>
-              <div className="flex flex-wrap gap-2">
-                {['English', 'Hindi', 'Malayalam', 'Tamil'].map(l => (
-                  <span key={l} className="px-3 py-1 border border-stone-200 rounded text-xs text-stone-600 hover:border-[#F84464] cursor-pointer">
-                    {l}
-                  </span>
-                ))}
+        {/* Events Grid */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+                <div className="h-48 bg-gray-200"></div>
+                <div className="p-4 space-y-3">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </div>
               </div>
-            </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-stone-200">
-              <p className="font-bold text-sm text-[#F84464] mb-3">Format</p>
-              <div className="flex flex-wrap gap-2">
-                {['2D', '3D', 'IMAX 2D', '4DX'].map(f => (
-                  <span key={f} className="px-3 py-1 border border-stone-200 rounded text-xs text-stone-600 hover:border-[#F84464] cursor-pointer">
-                    {f}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </aside>
-
-          {/* ─── Event Grid ─── */}
-          <div className="flex-1">
-            {isLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="animate-pulse space-y-4">
-                    <div className="aspect-[2/3] bg-stone-200 rounded-xl" />
-                    <div className="h-4 bg-stone-200 rounded w-3/4" />
-                    <div className="h-4 bg-stone-200 rounded w-1/2" />
+            ))}
+          </div>
+        ) : filteredEvents.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🎭</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No events found</h3>
+            <p className="text-gray-600">Try adjusting your search or filters</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredEvents.map((event, index) => (
+              <motion.div
+                key={event._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
+              >
+                <Link to={`/events/${event._id}`}>
+                  <div className="relative">
+                    <img
+                      src={event.posterUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=400'}
+                      alt={event.title}
+                      className="w-full h-48 object-cover"
+                    />
+                    <div className="absolute top-3 left-3">
+                      <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-medium">
+                        {event.category}
+                      </span>
+                    </div>
+                    <div className="absolute top-3 right-3 flex items-center bg-white bg-opacity-90 px-2 py-1 rounded">
+                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                      <span className="text-sm font-medium ml-1">4.5</span>
+                    </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10">
-                {events.map((event) => (
-                  <motion.div 
-                    key={event._id}
-                    layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="group cursor-pointer"
-                  >
-                    <Link to={`/events/${event._id}`}>
-                      {/* Poster Image */}
-                      <div className="aspect-[2/3] rounded-xl overflow-hidden relative mb-4 shadow-sm">
-                        <img 
-                          src={event.posterUrl} 
-                          alt={event.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                        {/* Rating Overlay (BMS Style) */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/80 px-3 py-2 flex justify-between items-center">
-                          <div className="flex items-center gap-1">
-                            <Star size={14} className="text-[#F84464]" fill="#F84464" />
-                            <span className="text-white text-xs font-bold">9.0/10</span>
-                          </div>
-                          <span className="text-white/60 text-[10px]">12.4k Votes</span>
-                        </div>
-                      </div>
 
-                      {/* Content */}
-                      <div className="space-y-1">
-                        <h3 className="font-bold text-stone-900 leading-tight group-hover:text-stone-600 transition-colors">
-                          {event.title}
-                        </h3>
-                        <p className="text-sm text-stone-500 truncate">
-                          {event.category} • {event.city}
-                        </p>
-                        <p className="text-sm font-semibold text-stone-700 mt-2">
-                          ₹{event.basePrice} onwards
-                        </p>
+                  <div className="p-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                      {event.title}
+                    </h3>
+
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center text-sm text-gray-600">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        <span>{event.city || 'Location TBA'}</span>
                       </div>
-                    </Link>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        <span>{event.date ? new Date(event.date).toLocaleDateString() : 'Date TBA'}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-bold text-red-600">
+                        ₹{event.basePrice || 'TBA'} onwards
+                      </span>
+                      <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        Book Now
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
           </div>
-        </div>
-      </main>
+        )}
+      </div>
+
       <Footer />
     </div>
   );

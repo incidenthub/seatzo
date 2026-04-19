@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { 
-  Calendar, MapPin, Users, Info, Share2, Heart, 
-  ChevronRight, Star, Clock, Languages, ShieldCheck
+import {
+  Calendar, MapPin, Users, Info, Share2, Heart,
+  ChevronRight, Star, Clock, Languages, ShieldCheck, ArrowLeft
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import eventService from '../services/event.service';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
@@ -13,6 +13,7 @@ import Footer from '../components/UI/Footer';
 
 const EventDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,164 +40,268 @@ const EventDetail = () => {
   };
 
   if (isLoading) return <LoadingSpinner fullPage />;
-  
+
   if (error || !event) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="flex flex-col items-center justify-center h-[70vh] p-6 text-center">
-           <h2 className="text-4xl font-black tracking-tighter uppercase italic mb-4">{error || 'VOIDS.'}</h2>
-           <p className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-8">The requested protocol is unavailable.</p>
-           <Link to="/events" className="px-8 py-3 bg-black text-white rounded-lg font-bold text-xs uppercase tracking-widest">
-              Back to Catalog
-           </Link>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Event Not Found</h2>
+          <p className="text-gray-600 mb-8">The event you're looking for is currently unavailable.</p>
+          <Link
+            to="/events"
+            className="bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors"
+          >
+            Back to Events
+          </Link>
         </div>
         <Footer />
       </div>
     );
   }
 
-  const formattedDate = new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const formattedDate = new Date(event.date).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  const formattedTime = new Date(event.date).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] selection:bg-[#F84464] selection:text-white">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
-      {/* ─── Hero Banner Section (BMS Style) ─── */}
-      <div className="relative w-full h-[480px] overflow-hidden bg-black">
-        {/* Blurred Background */}
-        <div className="absolute inset-0 opacity-40 blur-2xl scale-110">
-            <img src={event.posterUrl} alt="" className="w-full h-full object-cover" />
-        </div>
-        
-        <div className="relative max-w-7xl mx-auto h-full flex items-center px-6 md:px-12 gap-10 z-10">
-            {/* Poster Card */}
-            <motion.div 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="hidden md:block w-64 h-[400px] shrink-0 rounded-lg overflow-hidden shadow-2xl border border-white/10"
-            >
-                <img src={event.posterUrl} alt={event.title} className="w-full h-full object-cover" />
-            </motion.div>
 
-            {/* Event Info */}
-            <div className="text-white flex-1 space-y-6">
-                <div className="flex items-center gap-2">
-                    <span className="bg-[#333] text-[10px] font-bold px-2 py-1 rounded">PREMIERE</span>
-                    <span className="bg-[#F84464] text-[10px] font-bold px-2 py-1 rounded">NEW</span>
-                </div>
-                
-                <h1 className="text-4xl md:text-5xl font-bold tracking-tight">{event.title}</h1>
-                
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1 bg-[#222] px-3 py-2 rounded-lg">
-                        <Star className="text-[#F84464]" fill="#F84464" size={18} />
-                        <span className="font-bold text-lg">9.2/10</span>
-                        <span className="text-xs text-stone-400 ml-2">45K Votes</span>
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                   <div className="bg-white/10 backdrop-blur-md px-4 py-1 rounded text-sm font-medium">{event.category}</div>
-                   <div className="bg-white/10 backdrop-blur-md px-4 py-1 rounded text-sm font-medium">2D, IMAX 2D</div>
-                   <div className="bg-white/10 backdrop-blur-md px-4 py-1 rounded text-sm font-medium">English, Hindi</div>
-                </div>
-
-                <p className="text-lg font-medium">
-                    {formattedDate} • {event.venue}
-                </p>
-
-                <Link 
-                    to={token ? `/events/${id}/book/new` : '/login'}
-                    className="flex items-center justify-center gap-2 bg-[#F84464] hover:bg-[#d63a56] transition-colors px-12 py-4 rounded-xl font-bold text-lg text-white"
-                >
-                    Book Tickets
-                </Link>
-            </div>
-        </div>
-      </div>
-
-      {/* ─── Main Content ─── */}
-      <main className="max-w-7xl mx-auto px-6 md:px-12 py-12 flex flex-col lg:flex-row gap-12">
-        
-        {/* Left Column: Details */}
-        <div className="flex-1 space-y-12">
-            <section>
-                <h2 className="text-2xl font-bold text-stone-900 mb-4">About the Event</h2>
-                <p className="text-stone-600 leading-relaxed text-lg">
-                    {event.description}
-                </p>
-            </section>
-
-            <div className="h-[1px] bg-stone-200" />
-
-            <section>
-                <h2 className="text-2xl font-bold text-stone-900 mb-6">Venue & Safety</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex items-start gap-4 p-6 bg-white rounded-xl shadow-sm border border-stone-100">
-                        <MapPin className="text-[#F84464] shrink-0" />
-                        <div>
-                            <h4 className="font-bold">{event.venue}</h4>
-                            <p className="text-sm text-stone-500">{event.city}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-start gap-4 p-6 bg-white rounded-xl shadow-sm border border-stone-100">
-                        <ShieldCheck className="text-green-500 shrink-0" />
-                        <div>
-                            <h4 className="font-bold">Safety Measures</h4>
-                            <p className="text-sm text-stone-500">Sanitized Venue, Mask Required</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        {/* Right Column: Sidebar (BMS Offers/Sidebar Style) */}
-        <div className="w-full lg:w-[350px] space-y-6">
-            <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
-                <h3 className="font-bold text-lg mb-4">Offers For You</h3>
-                <div className="flex items-start gap-3 bg-blue-50 p-4 rounded-lg border border-blue-100 mb-3">
-                    <Info size={18} className="text-blue-600 shrink-0 mt-1" />
-                    <p className="text-xs text-blue-800 font-medium">
-                        Unlock 25% off on food and beverages with select credit cards.
-                    </p>
-                </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
-                <div className="flex justify-between items-center mb-6">
-                    <span className="text-sm font-bold text-stone-400 uppercase tracking-widest">Share this event</span>
-                    <div className="flex gap-4">
-                        <Share2 size={20} className="text-stone-600 cursor-pointer hover:text-[#F84464]" />
-                        <Heart 
-                           size={20} 
-                           fill={isLiked ? "#F84464" : "none"} 
-                           className={`cursor-pointer ${isLiked ? "text-[#F84464]" : "text-stone-600"}`} 
-                           onClick={() => setIsLiked(!isLiked)}
-                        />
-                    </div>
-                </div>
-                <div className="p-4 bg-stone-50 rounded-lg border border-dashed border-stone-300">
-                    <p className="text-[11px] font-bold text-stone-500 uppercase text-center">
-                        Organizer: {event.organiser?.name || 'Authorized Partner'}
-                    </p>
-                </div>
-            </div>
-        </div>
-      </main>
-
-      {/* Fixed Bottom Bar for Mobile Booking */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 flex items-center justify-between z-50">
-          <div>
-            <p className="text-xs text-stone-500 font-bold uppercase">Starting From</p>
-            <p className="text-xl font-bold">₹{pricing?.currentPrice?.toLocaleString('en-IN')}</p>
-          </div>
-          <Link 
-            to={token ? `/events/${id}/book/new` : '/login'}
-            className="bg-[#F84464] text-white px-8 py-3 rounded-lg font-bold"
+      {/* Hero Section */}
+      <section className="relative bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
           >
-            Book Tickets
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back
+          </button>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Event Poster */}
+            <div className="lg:col-span-1">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="relative overflow-hidden rounded-lg shadow-lg"
+              >
+                <img
+                  src={event.posterUrl}
+                  alt={event.title}
+                  className="w-full h-auto object-cover"
+                />
+                <div className="absolute top-4 left-4">
+                  <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                    {event.category}
+                  </span>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Event Details */}
+            <div className="lg:col-span-2 space-y-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
+                  {event.title}
+                </h1>
+
+                <div className="flex items-center space-x-4 mb-6">
+                  <div className="flex items-center">
+                    <Star className="w-5 h-5 text-yellow-400 fill-current" />
+                    <span className="ml-1 text-gray-700 font-medium">4.5</span>
+                    <span className="ml-1 text-gray-500">(2.1k reviews)</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="w-5 h-5 text-red-600" />
+                    <div>
+                      <p className="font-medium text-gray-900">{formattedDate}</p>
+                      <p className="text-sm text-gray-600">{formattedTime}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <MapPin className="w-5 h-5 text-red-600" />
+                    <div>
+                      <p className="font-medium text-gray-900">{event.venue}</p>
+                      <p className="text-sm text-gray-600">{event.city}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Starting from</p>
+                    <p className="text-3xl font-bold text-red-600">
+                      ₹{pricing?.currentPrice?.toLocaleString('en-IN')}
+                    </p>
+                  </div>
+
+                  <Link
+                    to={token ? `/events/${id}/book` : '/login'}
+                    className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center"
+                  >
+                    Book Tickets
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </Link>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Event Information */}
+      <section className="py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* About */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white rounded-lg shadow-sm p-6"
+              >
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">About the Event</h2>
+                <p className="text-gray-700 leading-relaxed">
+                  {event.description}
+                </p>
+              </motion.div>
+
+              {/* Venue Information */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="bg-white rounded-lg shadow-sm p-6"
+              >
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Venue Information</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex items-start space-x-4">
+                    <MapPin className="w-6 h-6 text-red-600 mt-1" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{event.venue}</h3>
+                      <p className="text-gray-600">{event.city}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-4">
+                    <ShieldCheck className="w-6 h-6 text-green-600 mt-1" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Safety Measures</h3>
+                      <p className="text-gray-600">Sanitized venue, mask required, social distancing</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Quick Actions */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="bg-white rounded-lg shadow-sm p-6"
+              >
+                <h3 className="font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setIsLiked(!isLiked)}
+                    className={`w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg border transition-colors ${
+                      isLiked
+                        ? 'border-red-600 text-red-600 bg-red-50'
+                        : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                    }`}
+                  >
+                    <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                    <span>{isLiked ? 'Added to Favorites' : 'Add to Favorites'}</span>
+                  </button>
+
+                  <button className="w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg border border-gray-300 text-gray-700 hover:border-gray-400 transition-colors">
+                    <Share2 className="w-4 h-4" />
+                    <span>Share Event</span>
+                  </button>
+                </div>
+              </motion.div>
+
+              {/* Organizer Info */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="bg-white rounded-lg shadow-sm p-6"
+              >
+                <h3 className="font-semibold text-gray-900 mb-4">Organizer</h3>
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                    <Users className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {event.organiser?.name || 'Authorized Partner'}
+                    </p>
+                    <p className="text-sm text-gray-600">Event Organizer</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Offers */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200"
+              >
+                <div className="flex items-start space-x-3">
+                  <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-blue-900 mb-2">Special Offer</h3>
+                    <p className="text-sm text-blue-800">
+                      Get 25% off on food and beverages with select credit cards.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Mobile Booking Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600">Starting from</p>
+            <p className="text-xl font-bold text-red-600">
+              ₹{pricing?.currentPrice?.toLocaleString('en-IN')}
+            </p>
+          </div>
+          <Link
+            to={token ? `/events/${id}/book` : '/login'}
+            className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+          >
+            Book Now
           </Link>
+        </div>
       </div>
 
       <Footer />

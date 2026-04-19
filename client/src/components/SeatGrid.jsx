@@ -103,7 +103,7 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
       </AnimatePresence>
 
       {/* Tactical Legend */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-20 p-6 bg-stone-50 rounded-[2rem] border border-stone-100">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-20 p-6 bg-stone-50 rounded-4xl border border-stone-100">
         {[
           { label: 'Available', color: 'bg-stone-50 border-stone-200' },
           { label: 'Reserved', color: 'bg-amber-100 border-amber-200' },
@@ -119,9 +119,9 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
 
       {/* Main Grid Interface */}
       <div className="relative p-12 md:p-20 bg-white rounded-[3rem] border border-stone-100 shadow-sm overflow-x-auto">
-        <div className="min-w-[500px]">
+        <div className="min-w-125">
              {/* Stage/Screen Indicator */}
-             <div className="w-full h-1 bg-gradient-to-r from-transparent via-stone-200 to-transparent mb-20 relative">
+             <div className="w-full h-1 bg-linear-to-r from-transparent via-stone-200 to-transparent mb-20 relative">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-8 py-2 bg-white text-[10px] font-black uppercase tracking-[0.5em] text-stone-300">
                     AUTHORIZATION ZONE
                 </div>
@@ -194,12 +194,12 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
                          </div>
                     </div>
 
-                    {onCheckout && (
+                    {onCheckout && selectedSeats.length > 0 && (
                         <button
                             onClick={() => onCheckout(selectedSeats, total)}
                             className="group flex items-center gap-6 px-10 py-6 bg-white text-black rounded-3xl hover:bg-stone-100 transition-all overflow-hidden"
                         >
-                            <span className="font-black uppercase tracking-widest text-xs">Proceed to Auth</span>
+                        <span className="font-black uppercase tracking-widest text-xs">Buy Tickets</span>
                             <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
                                 <ChevronRight size={18} />
                             </div>

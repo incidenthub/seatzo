@@ -1,20 +1,21 @@
 import React from 'react';
 import Navbar from '../components/UI/Navbar';
 import Footer from '../components/UI/Footer';
-import Hero from '../components/Home/Hero'; 
-import TrendingGrid from '../components/Home/TrendingGrid';
-import SignalDiscovery from '../components/Home/SignalDiscovery';
-import TheLedger from '../components/Home/TheLedger';
+import Hero from '../components/Home/Hero';
+import FeaturedEvents from '../components/Home/FeaturedEvents';
+import EventCategories from '../components/Home/EventCategories';
+import UpcomingEvents from '../components/Home/UpcomingEvents';
+import QuickLinks from '../components/Home/QuickLinks';
 
 const Home = () => {
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-gray-50">
             <Navbar />
             <Hero />
-            <TrendingGrid />
-            <SignalDiscovery />
-            <TheLedger />
-            {/* Other sections will be added here */}
+            <FeaturedEvents />
+            <EventCategories />
+            <UpcomingEvents />
+            <QuickLinks />
             <Footer />
         </div>
     );

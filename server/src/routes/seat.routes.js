@@ -1,10 +1,9 @@
 import { Router } from "express";
-import { lockSeats, getSeats, releaseSeats } from "../controllers/seatController.js";
+import { lockSeats, releaseSeats } from "../controllers/seatController.js";
 
 const router = Router();
 
 router.post("/lock", lockSeats);
-router.get("/:eventId", getSeats);
-router.post("/release", releaseSeats)
+router.delete("/lock", releaseSeats);
 
 export default router;

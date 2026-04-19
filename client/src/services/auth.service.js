@@ -1,4 +1,6 @@
+import axios from 'axios';
 import api from './api';
+import { API_BASE_URL } from '../config/constants';
 
 const authService = {
   register: (name, email, password, role) =>
@@ -17,7 +19,7 @@ const authService = {
     api.post('/auth/logout'),
 
   refreshToken: () =>
-    api.post('/auth/refresh'),
+    axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true }),
 
   forgotPassword: (email) =>
     api.post('/auth/forgot-password', { email }),
