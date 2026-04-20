@@ -105,7 +105,7 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
       </AnimatePresence>
 
       {/* Tactical Legend */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-20 p-6 bg-stone-50 rounded-[2rem] border border-stone-100">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-20 p-6 bg-stone-50 rounded-4xl border border-stone-100">
         {[
           { label: 'Available', color: 'bg-stone-50 border-stone-200' },
           { label: 'Reserved', color: 'bg-amber-100 border-amber-200' },
@@ -204,16 +204,16 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
                          </div>
                     </div>
 
-                    {onCheckout && (
-                        <button
-                            onClick={() => onCheckout(selectedSeats, total)}
-                            className="group flex items-center gap-6 px-10 py-6 bg-white text-black rounded-3xl hover:bg-stone-100 transition-all overflow-hidden"
-                        >
-                            <span className="font-black uppercase tracking-widest text-xs">Proceed to Checkout</span>
-                            <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
-                                <ChevronRight size={18} />
-                            </div>
-                        </button>
+                    {onCheckout && selectedSeats.length > 0 && (
+                      <button
+                        onClick={() => onCheckout(selectedSeats, total)}
+                        className="group flex items-center gap-6 px-10 py-6 bg-white text-black rounded-3xl hover:bg-stone-100 transition-all overflow-hidden"
+                      >
+                        <span className="font-black uppercase tracking-widest text-xs">Proceed to Checkout</span>
+                        <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
+                          <ChevronRight size={18} />
+                        </div>
+                      </button>
                     )}
                 </div>
             </motion.div>

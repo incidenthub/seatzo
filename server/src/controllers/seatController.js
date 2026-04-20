@@ -91,7 +91,7 @@ export const getSeats = async (req, res) => {
       (s) => `seat:${eventId}:${s.seatNumber}`
     );
 
-    const lockedValues = await redis.mGet(lockKeys);
+    const lockedValues = lockKeys.length > 0 ? await redis.mGet(lockKeys) : [];
 
     const updatedSeats = seats.map((seat, index) => {
       if (lockedValues[index]) {
@@ -118,7 +118,9 @@ export const getSeats = async (req, res) => {
     };
 
     // 💰 6. PRICING
-    const pricing = await calculatePrice(event, viewerCount);
+    const pricing = updatedSeats.length > 0
+      ? await calculatePrice(event, viewerCount)
+      : { price: event.basePrice, multiplier: 1, occupancy: 0, viewers: viewerCount };
 
     // 🧩 7. ATTACH PRICE PER SEAT
     const seatsWithPrice = updatedSeats.map((seat) => ({

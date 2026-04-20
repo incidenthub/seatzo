@@ -1,50 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import eventService from '../../services/event.service';
+
+const featuredEvents = [
+    {
+        id: 'discover-movies',
+        title: 'Blockbuster Nights',
+        location: 'Mumbai, IN',
+        date: '19/04',
+        image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=800',
+        size: 'large',
+    },
+    {
+        id: 'discover-live',
+        title: 'Live Music',
+        location: 'Bengaluru, IN',
+        date: '21/04',
+        image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&q=80&w=800',
+        size: 'small',
+    },
+    {
+        id: 'discover-comedy',
+        title: 'Standup Specials',
+        location: 'Delhi, IN',
+        date: '22/04',
+        image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&q=80&w=800',
+        size: 'medium',
+    },
+    {
+        id: 'discover-sports',
+        title: 'Arena Sports',
+        location: 'Chennai, IN',
+        date: '24/04',
+        image: 'https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=80&w=800',
+        size: 'small',
+    },
+];
 
 const TrendingGrid = () => {
-    const [events, setEvents] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchEvents = async () => {
-            try {
-                const res = await eventService.getAllEvents({ limit: 4 });
-                const fetchedEvents = res.data?.events || res.data?.data || [];
-                
-                // Map API data to our grid structure
-                const mappedEvents = fetchedEvents.map((event, index) => ({
-                    id: event._id,
-                    title: event.title,
-                    location: `${event.city}, IN`,
-                    date: new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }),
-                    image: event.posterUrl || "https://images.unsplash.com/photo-1514525253361-bee8718a74a2?auto=format&fit=crop&q=80&w=800",
-                    size: index === 0 ? 'large' : index === 2 ? 'medium' : 'small'
-                }));
-                
-                setEvents(mappedEvents);
-            } catch (err) {
-                console.error("Failed to fetch trending events:", err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchEvents();
-    }, []);
-
-    if (isLoading && events.length === 0) {
-        return (
-            <div className="py-32 text-center text-stone-400 font-bold uppercase tracking-widest animate-pulse">
-                Syncing Live Signals...
-            </div>
-        );
-    }
-
     return (
-        <section className="py-32 px-6 md:px-12 max-w-[1400px] mx-auto bg-[#F9F9F9]">
+        <section className="py-32 px-6 md:px-12 max-w-7xl mx-auto bg-[#F9F9F9]">
             {/* Section Label */}
             <div className="flex justify-between items-end mb-16 border-b border-stone-200 pb-8">
                 <div>
@@ -60,7 +56,7 @@ const TrendingGrid = () => {
 
             {/* Asymmetric Grid */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-[100px]">
-                {events.map((item, index) => (
+                {featuredEvents.map((item, index) => (
                     <motion.div
                         key={item.id}
                         initial={{ opacity: 0, y: 30 }}
@@ -81,7 +77,7 @@ const TrendingGrid = () => {
                                     alt={item.title}
                                     className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                             </div>
 
                             {/* Text Overlay */}
@@ -112,4 +108,4 @@ const TrendingGrid = () => {
     );
 };
 
-export default TrendingGrid;
+export default TrendingGrid;

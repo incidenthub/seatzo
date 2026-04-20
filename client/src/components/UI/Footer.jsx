@@ -1,93 +1,161 @@
-import { ArrowUpRight, Mail } from 'lucide-react';
-import { FaInstagram, FaTwitter, FaLinkedin } from 'react-icons/fa';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Mail, Phone, MapPin } from 'lucide-react';
+import { FaFacebook, FaTwitter, FaInstagram, FaYoutube } from 'react-icons/fa';
 
 const Footer = () => {
     const currentYear = new Date().getFullYear();
 
     return (
-        <footer className="bg-white pt-32 pb-12 px-6 md:px-12 border-t border-stone-100 overflow-hidden">
-            <div className="max-w-[1400px] mx-auto">
-                
-                {/* Main Footer Content */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-16 mb-32">
-                    
-                    {/* Newsletter / Contact Call to Action */}
-                    <div className="md:col-span-6 space-y-8">
-                        <h2 className="text-4xl md:text-6xl font-light italic tracking-tighter uppercase leading-[0.85]">
-                            Start your <br />
-                            <span className="text-[#DC3558]">vault</span> journey.
-                        </h2>
-                        <div className="flex flex-col gap-4 max-w-sm">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-400">
-                                Join our curated list for exclusive signals.
-                            </p>
-                            <div className="relative group">
-                                <input 
-                                    type="email" 
-                                    placeholder="ALIAS@SYSTEM.COM" 
-                                    className="w-full bg-transparent border-b-2 border-stone-900 py-4 text-sm font-mono focus:outline-none placeholder:text-stone-200"
-                                />
-                                <button className="absolute right-0 bottom-4 hover:translate-x-1 transition-transform">
-                                    <ArrowUpRight size={20} />
-                                </button>
+        <footer className="bg-gray-900 text-white">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {/* Company Info */}
+                    <div className="space-y-4">
+                        <h3 className="text-xl font-bold text-red-500">Seatzo</h3>
+                        <p className="text-gray-300 text-sm leading-relaxed">
+                            Your ultimate destination for booking tickets to movies, concerts, sports, and events.
+                            Experience entertainment like never before.
+                        </p>
+                        <div className="flex space-x-4">
+                            <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                                <FaFacebook className="w-5 h-5" />
+                            </a>
+                            <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                                <FaTwitter className="w-5 h-5" />
+                            </a>
+                            <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                                <FaInstagram className="w-5 h-5" />
+                            </a>
+                            <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                                <FaYoutube className="w-5 h-5" />
+                            </a>
+                        </div>
+                    </div>
+
+                    {/* Quick Links */}
+                    <div className="space-y-4">
+                        <h4 className="text-lg font-semibold">Quick Links</h4>
+                        <ul className="space-y-2">
+                            <li>
+                                <Link to="/events" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    All Events
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/events?category=movies" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    Movies
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/events?category=concerts" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    Concerts
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/events?category=sports" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    Sports
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/events?category=theatre" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    Theatre
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+
+                    {/* Customer Service */}
+                    <div className="space-y-4">
+                        <h4 className="text-lg font-semibold">Customer Service</h4>
+                        <ul className="space-y-2">
+                            <li>
+                                <Link to="/contact" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    Contact Us
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/help" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    Help & Support
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/faq" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    FAQ
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/refund-policy" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    Refund Policy
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/terms" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    Terms & Conditions
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+
+                    {/* Contact Info */}
+                    <div className="space-y-4">
+                        <h4 className="text-lg font-semibold">Contact Info</h4>
+                        <div className="space-y-3">
+                            <div className="flex items-center space-x-3">
+                                <MapPin className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                <span className="text-gray-300 text-sm">
+                                    123 Entertainment Street<br />
+                                    Mumbai, Maharashtra 400001
+                                </span>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                                <Phone className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                <span className="text-gray-300 text-sm">+91 98765 43210</span>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                                <Mail className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                <span className="text-gray-300 text-sm">support@seatzo.com</span>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    {/* Navigation Columns */}
-                    <div className="md:col-span-3 space-y-6">
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#DC3558]">Navigation</p>
-                        <ul className="space-y-4">
-                            {['Events', 'Archive', 'Identity', 'Pricing', 'Security'].map((link) => (
-                                <li key={link}>
-                                    <a href="#" className="text-sm font-medium hover:italic transition-all uppercase tracking-tight text-stone-600 hover:text-stone-950">
-                                        {link}
-                                    </a>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    {/* Socials & Legal */}
-                    <div className="md:col-span-3 space-y-6">
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#DC3558]">Connect</p>
-                        <ul className="space-y-4">
-                            {[
-                                { name: 'Instagram', icon: <FaInstagram size={14} /> },
-                                { name: 'Twitter', icon: <FaTwitter size={14} /> },
-                                { name: 'LinkedIn', icon: <FaLinkedin size={14} /> },
-                                { name: 'Contact', icon: <Mail size={14} /> },
-                            ].map((social) => (
-                                <li key={social.name}>
-                                    <a href="#" className="flex items-center gap-2 text-sm font-medium uppercase tracking-tight text-stone-600 hover:text-stone-950 group">
-                                        <span className="group-hover:rotate-12 transition-transform">{social.icon}</span>
-                                        {social.name}
-                                    </a>
-                                </li>
-                            ))}
-                        </ul>
+                {/* Newsletter */}
+                <div className="border-t border-gray-800 mt-8 pt-8">
+                    <div className="max-w-md">
+                        <h4 className="text-lg font-semibold mb-4">Stay Updated</h4>
+                        <p className="text-gray-300 text-sm mb-4">
+                            Subscribe to get latest updates on events and exclusive offers.
+                        </p>
+                        <div className="flex">
+                            <input
+                                type="email"
+                                placeholder="Enter your email"
+                                className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-l-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
+                            />
+                            <button className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-r-md font-medium transition-colors">
+                                Subscribe
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                {/* The Brutalist Brand Statement */}
-                <div className="relative border-t border-stone-100 pt-12">
-                    <div className="flex flex-col md:flex-row justify-between items-end gap-8">
-                        <div className="text-[9px] font-mono text-stone-300 uppercase tracking-[0.3em] leading-relaxed">
-                            Designed for the elite.<br />
-                            Powered by Seatzo Protocol.<br />
-                            Thrissur // Kerala // IN
-                        </div>
-                        
-                        <div className="text-[9px] font-mono text-stone-300 uppercase tracking-[0.3em] text-right">
-                            © {currentYear} ALL RIGHTS RESERVED<br />
-                            v.2.0.46_STABLE
-                        </div>
+                {/* Bottom Bar */}
+                <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
+                    <p className="text-gray-400 text-sm">
+                        © {currentYear} Seatzo. All rights reserved.
+                    </p>
+                    <div className="flex space-x-6 mt-4 md:mt-0">
+                        <Link to="/privacy" className="text-gray-400 hover:text-white text-sm transition-colors">
+                            Privacy Policy
+                        </Link>
+                        <Link to="/terms" className="text-gray-400 hover:text-white text-sm transition-colors">
+                            Terms of Service
+                        </Link>
+                        <Link to="/cookies" className="text-gray-400 hover:text-white text-sm transition-colors">
+                            Cookie Policy
+                        </Link>
                     </div>
-
-                    {/* Large Background Text Clipping */}
-                    <h1 className="text-[25vw] font-black text-stone-50/80 leading-none tracking-tighter uppercase select-none pointer-events-none absolute -bottom-20 left-1/2 -translate-x-1/2 z-[-1] whitespace-nowrap">
-                        SEATZO.
-                    </h1>
                 </div>
             </div>
         </footer>

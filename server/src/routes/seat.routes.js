@@ -1,6 +1,6 @@
-import { Router } from "express";
 import { lockSeats, getSeats, releaseSeats } from "../controllers/seatController.js";
 import { protect } from "../middleware/auth.middleware.js";
+import { Router } from "express";
 
 const router = Router();
 

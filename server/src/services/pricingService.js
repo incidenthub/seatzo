@@ -14,7 +14,9 @@ export const calculatePrice = async (event, viewerCount=0) => {
   
 
   // 📊 2. Availability (MOST IMPORTANT)
-  const occupancy = 1 - (event.availableSeats / event.totalSeats);
+  const occupancy = event.totalSeats > 0
+    ? 1 - (event.availableSeats / event.totalSeats)
+    : 0;
 
   if (occupancy > 0.9) multiplier *= 2.0;
   else if (occupancy > 0.75) multiplier *= 1.5;
