@@ -11,7 +11,7 @@ import { releaseLock } from "../services/seatLockService.js";
 export const lockSeats = async (req, res) => {
   try {
     const { eventId, seatIds } = req.body;
-    const userId = "69d0de61feb5e5771ce5e1b4"; // replace later with auth
+    const userId = req.user.id;
 
     const result = await lockMultipleSeats(eventId, seatIds, userId);
 
