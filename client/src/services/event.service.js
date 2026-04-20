@@ -47,9 +47,9 @@ const eventService = {
       return request;
     },
 
-  // GET /api/events/:id/seats — seat map + dynamic pricing + viewer count
+  // GET /api/seats/:eventId — seat map + dynamic pricing + viewer count
   getEventSeats: (id) =>
-    api.get(`/events/${id}/seats`),
+    api.get(`/seats/${id}`),
 
   // ─── Organiser ───────────────────────────────────────────────────────────
   // POST /api/events — create event with sections

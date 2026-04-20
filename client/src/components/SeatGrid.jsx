@@ -59,8 +59,10 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
     }
   };
 
+  // Group seats by row
   const seatsByRow = {};
   seats.forEach(seat => {
+    if (!seat.row) return; // Defensive: skip if no row
     if (!seatsByRow[seat.row]) seatsByRow[seat.row] = [];
     seatsByRow[seat.row].push(seat);
   });
@@ -118,43 +120,51 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
       </div>
 
       {/* Main Grid Interface */}
-      <div className="relative p-12 md:p-20 bg-white rounded-[3rem] border border-stone-100 shadow-sm overflow-x-auto">
-        <div className="min-w-125">
-             {/* Stage/Screen Indicator */}
-             <div className="w-full h-1 bg-linear-to-r from-transparent via-stone-200 to-transparent mb-20 relative">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-8 py-2 bg-white text-[10px] font-black uppercase tracking-[0.5em] text-stone-300">
-                    AUTHORIZATION ZONE
-                </div>
-             </div>
+      <div className="relative p-8 md:p-16 bg-white rounded-[3rem] border-2 border-stone-200 shadow-lg overflow-x-auto min-h-[300px]">
+        <div className="min-w-[500px]">
+          {/* Stage/Screen Indicator */}
+          <div className="w-full h-1 bg-gradient-to-r from-transparent via-stone-200 to-transparent mb-20 relative">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-8 py-2 bg-white text-[12px] font-black uppercase tracking-[0.5em] text-stone-400 border border-stone-100 rounded-xl shadow-sm">
+              AUTHORIZATION ZONE
+            </div>
+          </div>
 
-             {/* Dynamic Seat Map */}
-             <div className="flex flex-col gap-6">
-                {Object.keys(seatsByRow).sort().map(row => (
-                    <div key={row} className="flex gap-8 items-center justify-center">
-                        <div className="w-8 h-8 flex items-center justify-center text-[10px] font-black text-stone-300 border border-stone-100 rounded-lg">
-                            {row}
-                        </div>
-                        <div className="flex gap-3">
-                            {seatsByRow[row].map(seat => {
-                                const isSelected = selectedSeats.find(s => s._id === seat._id);
-                                return (
-                                    <motion.button
-                                        key={seat._id || seat.seatNumber}
-                                        whileHover={seat.status === 'AVAILABLE' || isSelected ? { scale: 1.1 } : {}}
-                                        whileTap={seat.status === 'AVAILABLE' || isSelected ? { scale: 0.95 } : {}}
-                                        onClick={() => handleSeatClick(seat)}
-                                        disabled={seat.status !== 'AVAILABLE' && !isSelected}
-                                        className={`w-10 h-10 rounded-xl border text-[10px] font-black transition-all flex items-center justify-center relative group ${getSeatStatusClass(seat)}`}
-                                    >
-                                        <span className={isSelected ? 'relative z-10' : ''}>{seat.seatNumber.replace(row, '')}</span>
-                                        {isSelected && <div className="absolute inset-0 bg-white opacity-10 animate-pulse rounded-xl" />}
-                                    </motion.button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ))}
-             </div>
+          {/* Dynamic Seat Map or Empty State */}
+          {Object.keys(seatsByRow).length === 0 ? (
+            <div className="flex flex-col items-center justify-center min-h-[180px] text-stone-400 gap-4">
+              <Armchair size={48} />
+              <span className="font-bold text-lg">No seats available for this event.</span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-8">
+              {Object.keys(seatsByRow).sort().map(row => (
+                <div key={row} className="flex gap-8 items-center justify-center">
+                  <div className="w-10 h-10 flex items-center justify-center text-xs font-black text-stone-500 border border-stone-200 rounded-lg bg-stone-50 shadow-sm">
+                    {row}
+                  </div>
+                  <div className="flex gap-4">
+                    {seatsByRow[row].map(seat => {
+                      const isSelected = selectedSeats.find(s => s._id === seat._id);
+                      return (
+                        <motion.button
+                          key={seat._id || seat.seatNumber}
+                          whileHover={seat.status === 'AVAILABLE' || isSelected ? { scale: 1.1 } : {}}
+                          whileTap={seat.status === 'AVAILABLE' || isSelected ? { scale: 0.95 } : {}}
+                          onClick={() => handleSeatClick(seat)}
+                          disabled={seat.status !== 'AVAILABLE' && !isSelected}
+                          className={`w-14 h-14 rounded-2xl border-2 text-base font-black transition-all flex items-center justify-center relative group shadow-md ${getSeatStatusClass(seat)}`}
+                          style={{ minWidth: 56, minHeight: 56 }}
+                        >
+                          <span className={isSelected ? 'relative z-10' : ''}>{seat.seatNumber.replace(row, '')}</span>
+                          {isSelected && <div className="absolute inset-0 bg-white opacity-10 animate-pulse rounded-2xl" />}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -195,15 +205,15 @@ export default function SeatGrid({ eventId, seats = [], refresh, onSelectionChan
                     </div>
 
                     {onCheckout && selectedSeats.length > 0 && (
-                        <button
-                            onClick={() => onCheckout(selectedSeats, total)}
-                            className="group flex items-center gap-6 px-10 py-6 bg-white text-black rounded-3xl hover:bg-stone-100 transition-all overflow-hidden"
-                        >
-                        <span className="font-black uppercase tracking-widest text-xs">Buy Tickets</span>
-                            <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
-                                <ChevronRight size={18} />
-                            </div>
-                        </button>
+                      <button
+                        onClick={() => onCheckout(selectedSeats, total)}
+                        className="group flex items-center gap-6 px-10 py-6 bg-white text-black rounded-3xl hover:bg-stone-100 transition-all overflow-hidden"
+                      >
+                        <span className="font-black uppercase tracking-widest text-xs">Proceed to Checkout</span>
+                        <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
+                          <ChevronRight size={18} />
+                        </div>
+                      </button>
                     )}
                 </div>
             </motion.div>
