@@ -6,8 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/UI/Navbar';
 import Footer from '../components/UI/Footer';
 import bookingService from '../services/booking.service';
-import { logoutSuccess } from '../store/slices/authSlice';
-import Cookies from 'js-cookie';
+import { logoutStart } from '../store/slices/authSlice';
 
 const Profile = () => {
     const { user, token } = useSelector((state) => state.auth);
@@ -47,9 +46,7 @@ const Profile = () => {
     };
 
     const handleLogout = () => {
-        Cookies.remove('accessToken');
-        Cookies.remove('user');
-        dispatch(logoutSuccess());
+        dispatch(logoutStart());
         navigate('/');
     };
 
@@ -57,10 +54,10 @@ const Profile = () => {
         <div className="min-h-screen bg-surface grain text-stone-900 font-sans selection:bg-[#DC3558] selection:text-white">
             <Navbar />
             
-            <main className="pt-40 pb-24 max-w-[1200px] mx-auto px-6">
+            <main className="pt-40 pb-24 max-w-300 mx-auto px-6">
                 <div className="mb-12">
                     <h1 className="text-6xl font-black tracking-tighter uppercase italic">Control Center.</h1>
-                    <p className="text-stone-400 text-sm font-medium tracking-tight mt-2 uppercase tracking-widest">Session ID: SZ-{user?.id?.slice(-8).toUpperCase()}</p>
+                    <p className="text-stone-400 text-sm font-medium mt-2 uppercase tracking-widest">Session ID: SZ-{user?.id?.slice(-8).toUpperCase()}</p>
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-16">
@@ -101,7 +98,7 @@ const Profile = () => {
                                 initial={{ opacity: 0, y: 15 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
-                                className="bg-white rounded-[2.5rem] border border-stone-100 p-8 md:p-14 shadow-sm min-h-[500px]"
+                                className="bg-white rounded-[2.5rem] border border-stone-100 p-8 md:p-14 shadow-sm min-h-125"
                             >
                                 {activeTab === 'identity' && (
                                     <div className="space-y-12">

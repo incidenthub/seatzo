@@ -51,6 +51,7 @@ function App() {
           {/* Event Routes */}
           <Route path="/events" element={<EventListings />} />
           <Route path="/events/:id" element={<EventDetail />} />
+          <Route path="/events/:id/book" element={<BookingPage />} />
           <Route path="/events/:id/book/:bookingId" element={<BookingPage />} />
           <Route path="/booking-confirmation/:id" element={<BookingConfirmation />} />
 

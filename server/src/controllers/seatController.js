@@ -3,12 +3,13 @@ import { calculatePrice } from "../services/pricingService.js";
 import redis from "../config/redis.js";
 import { SEAT_STATUS } from "../utils/constants.js";
 import Seat from "../models/seat.model.js";
+import Event from "../models/event.model.js";
 
 // ─── Lock Seats ───────────────────────────────────────────────────────────────
 export const lockSeats = async (req, res) => {
   try {
     const { eventId, seatIds } = req.body;
-    const userId = req.user._id.toString(); // fixed — was hardcoded
+    const userId = req.user._id.toString();
 
     const result = await lockMultipleSeats(eventId, seatIds, userId);
 
@@ -65,14 +66,19 @@ export const getSeats = async (req, res) => {
       await redis.expire(viewerKey, 300);
     }
 
-    // 3. Fetch seats from DB
-    const seats = await Seat.find({ event: eventId })
-      .select("seatNumber row section status price")
-      .lean();
+    // 3. Fetch seats & event data from DB
+    const [seats, event] = await Promise.all([
+      Seat.find({ event: eventId }).select("seatNumber row section status price").lean(),
+      Event.findById(eventId).lean()
+    ]);
+
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
 
     // 4. Check Redis locks for real-time status override
     const lockKeys = seats.map((s) => `seat:${eventId}:${s.seatNumber}`);
-    const lockedValues = await redis.mGet(lockKeys);
+    const lockedValues = lockKeys.length > 0 ? await redis.mGet(lockKeys) : [];
 
     const updatedSeats = seats.map((seat, index) => {
       if (lockedValues[index]) {
@@ -81,21 +87,15 @@ export const getSeats = async (req, res) => {
       return seat;
     });
 
-    // 5. Calculate availability
+    // 5. Calculate real-time availability
     const availableSeats = updatedSeats.filter(
-      (s) => s.status === "AVAILABLE"
+      (s) => s.status === SEAT_STATUS.AVAILABLE
     ).length;
 
-    const event = {
-      _id: eventId,
-      basePrice: 100,
-      totalSeats: updatedSeats.length,
-      availableSeats,
-      date: new Date(Date.now() + 5 * 60 * 60 * 1000)
-    };
-
     // 6. Dynamic pricing
-    const pricing = await calculatePrice(event, viewerCount);
+    const pricing = updatedSeats.length > 0
+      ? await calculatePrice(event, viewerCount)
+      : { price: event.basePrice, multiplier: 1, occupancy: 0, viewers: viewerCount };
 
     // 7. Attach price per seat
     const seatsWithPrice = updatedSeats.map((seat) => ({

@@ -15,6 +15,7 @@ import webhookRoutes from './src/routes/webhook.routes.js';
 import seatRoutes from "./src/routes/seat.routes.js";
 import bookingRoutes from "./src/routes/booking.routes.js";
 import adminRoutes from "./src/routes/admin.routes.js";
+import { getSeats } from './src/controllers/seatController.js';
 
 const app = express();
 
@@ -54,9 +55,10 @@ app.get('/', (_req, res) => {
 
 // ─── App Routes ────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.get('/api/events/:eventId/seats', getSeats);
 app.use('/api/events', eventRoutes);
 app.use('/api/payments', paymentRoutes);
-app.use("/api/seats", seatRoutes);
+app.use('/api/seats', seatRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin", adminRoutes);
 

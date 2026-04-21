@@ -79,36 +79,30 @@ export const releaseLock = async (eventId, seatId) => {
 // If any seat fails, rolls back ALL previously acquired locks.
 // All-or-nothing: either every seat is locked, or none are.
 export const lockMultipleSeats = async (eventId, seatIds, userId) => {
- const lockedSeats = await Seat.find({
-  event: eventId,
-  lockedBy: userId,
-  status: 'LOCKED',
-}).select('seatNumber');
+  const newlyLocked = [];
 
   try {
     for (const seatId of seatIds) {
       const success = await lockSeat(eventId, seatId, userId);
 
       if (!success) {
-        // This seat is taken — roll back every seat we already locked
+        // Roll back ONLY the seats we successfully locked in this specific request.
+        // This avoids accidentally releasing other seats the user might have in their cart.
         await Promise.all(
-          lockedSeats.map(seat =>
-  releaseLock(eventId, seat.seatNumber)
-)
+          newlyLocked.map(id => releaseLock(eventId, id))
         );
         return { success: false, failedSeat: seatId };
       }
 
-      lockedSeats.push(seatId);
+      newlyLocked.push(seatId);
     }
 
     return { success: true };
 
   } catch (err) {
-    // Unexpected error (Redis down, MongoDB timeout, etc.)
-    // Best-effort rollback of whatever we managed to lock
+    // Best-effort rollback of whatever we managed to lock in this turn
     await Promise.allSettled(
-      lockedSeats.map(id => releaseLock(eventId, id))
+      newlyLocked.map(id => releaseLock(eventId, id))
     );
     throw err;
   }
