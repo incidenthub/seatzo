@@ -1,17 +1,14 @@
-import { lockMultipleSeats } from "../services/seatLockService.js";
+import { lockMultipleSeats, releaseLock } from "../services/seatLockService.js";
 import { calculatePrice } from "../services/pricingService.js";
 import redis from "../config/redis.js";
 import { SEAT_STATUS } from "../utils/constants.js";
-import Seat from "../models/seat.model.js"
-import { releaseLock } from "../services/seatLockService.js";
+import Seat from "../models/seat.model.js";
 
-
-
-// 🔒 Lock seats
+// ─── Lock Seats ───────────────────────────────────────────────────────────────
 export const lockSeats = async (req, res) => {
   try {
     const { eventId, seatIds } = req.body;
-    const userId = "69d0de61feb5e5771ce5e1b4"; // replace later with auth
+    const userId = req.user._id.toString(); // fixed — was hardcoded
 
     const result = await lockMultipleSeats(eventId, seatIds, userId);
 
@@ -29,11 +26,11 @@ export const lockSeats = async (req, res) => {
   }
 };
 
-
-
+// ─── Release Seats ────────────────────────────────────────────────────────────
 export const releaseSeats = async (req, res) => {
   try {
     const { eventId, seatIds } = req.body;
+    const userId = req.user._id.toString();
 
     for (const seatId of seatIds) {
       await releaseLock(eventId, seatId);
@@ -45,35 +42,22 @@ export const releaseSeats = async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
-}
-
-
-export const generateSeats = () => {
-  const seats = [];
-
-  for (let i = 1; i <= 50; i++) {
-    seats.push({
-      seatId: `A${i}`,
-      status: "AVAILABLE"
-    });
-  }
-
-  return seats;
 };
 
+// ─── Get Seats ────────────────────────────────────────────────────────────────
 export const getSeats = async (req, res) => {
   try {
     const { eventId } = req.params;
 
     const cacheKey = `seats:${eventId}`;
 
-    // 🚀 1. CACHE CHECK
+    // 1. Cache check
     const cached = await redis.get(cacheKey);
     if (cached) {
       return res.json(JSON.parse(cached));
     }
 
-    // 🔥 2. VIEWER TRACKING
+    // 2. Viewer tracking
     const viewerKey = `viewers:${eventId}`;
     const viewerCount = await redis.incr(viewerKey);
 
@@ -81,49 +65,42 @@ export const getSeats = async (req, res) => {
       await redis.expire(viewerKey, 300);
     }
 
-    // 🪑 3. FETCH SEATS FROM DB
+    // 3. Fetch seats from DB
     const seats = await Seat.find({ event: eventId })
       .select("seatNumber row section status price")
       .lean();
 
-    // 🔒 4. CHECK REDIS LOCKS (REAL-TIME OVERRIDE)
-    const lockKeys = seats.map(
-      (s) => `seat:${eventId}:${s.seatNumber}`
-    );
-
+    // 4. Check Redis locks for real-time status override
+    const lockKeys = seats.map((s) => `seat:${eventId}:${s.seatNumber}`);
     const lockedValues = await redis.mGet(lockKeys);
 
     const updatedSeats = seats.map((seat, index) => {
       if (lockedValues[index]) {
-        return {
-          ...seat,
-
-          status: SEAT_STATUS.LOCKED
-        };
+        return { ...seat, status: SEAT_STATUS.LOCKED };
       }
       return seat;
     });
 
-    // 📊 5. CALCULATE AVAILABILITY
+    // 5. Calculate availability
     const availableSeats = updatedSeats.filter(
       (s) => s.status === "AVAILABLE"
     ).length;
 
     const event = {
       _id: eventId,
-      basePrice: 100, // replace later with Event model
+      basePrice: 100,
       totalSeats: updatedSeats.length,
       availableSeats,
       date: new Date(Date.now() + 5 * 60 * 60 * 1000)
     };
 
-    // 💰 6. PRICING
+    // 6. Dynamic pricing
     const pricing = await calculatePrice(event, viewerCount);
 
-    // 🧩 7. ATTACH PRICE PER SEAT
+    // 7. Attach price per seat
     const seatsWithPrice = updatedSeats.map((seat) => ({
       ...seat,
-      currentPrice: pricing.price // dynamic price
+      currentPrice: pricing.price
     }));
 
     const response = {
@@ -133,10 +110,8 @@ export const getSeats = async (req, res) => {
       pricing
     };
 
-    // ⚡ 8. CACHE RESULT (5 sec)
-    await redis.set(cacheKey, JSON.stringify(response), {
-      EX: 5
-    });
+    // 8. Cache result for 5 seconds
+    await redis.set(cacheKey, JSON.stringify(response), { EX: 5 });
 
     res.json(response);
 
