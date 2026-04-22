@@ -29,11 +29,14 @@ const Navbar = () => {
   const handleLogout = () => {
     dispatch(logoutStart());
     setIsProfileOpen(false);
-    navigate('/login');
+    navigate(user?.role === 'organiser' ? '/organizer-login' : user?.role === 'admin' ? '/login' : '/');
   };
 
   const token = Cookies.get('accessToken');
   const user = Cookies.get('user') ? JSON.parse(Cookies.get('user')) : null;
+  const isStaffUser = Boolean(token && user && ['organiser', 'admin'].includes(user.role));
+  const staffDashboardPath = user?.role === 'admin' ? '/admin-dashboard' : '/organizer-dashboard';
+  const staffDashboardLabel = user?.role === 'admin' ? 'Admin Dashboard' : 'Organizer Dashboard';
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 40);
@@ -43,6 +46,49 @@ const Navbar = () => {
 
   // Animation Constants
   const menuTransition = { type: "spring", damping: 25, stiffness: 200 };
+
+  if (isStaffUser) {
+    return (
+      <nav
+        className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+          isScrolled
+            ? 'py-3 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm'
+            : 'py-6 bg-transparent'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="group flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900">
+              <span>SEATZO</span>
+              <span className="text-red-600 transition-transform duration-300 group-hover:scale-110">.</span>
+            </span>
+            <div className="hidden h-6 w-px bg-gray-200 sm:block" />
+            <div className="hidden flex-col text-[10px] font-semibold uppercase tracking-[0.35em] text-gray-400 sm:flex">
+              <span>{user?.role === 'admin' ? 'Admin Access' : 'Organizer Access'}</span>
+              <span>Staff portal</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              to={staffDashboardPath}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em] text-gray-700 transition-colors hover:border-gray-400 hover:text-gray-900"
+            >
+              <LayoutDashboard size={14} />
+              {staffDashboardLabel}
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em] text-white transition-colors hover:bg-red-600"
+            >
+              <LogOut size={14} />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav
@@ -199,9 +245,9 @@ const Navbar = () => {
                       </Link>
 
                       <Link
-                        to="/organizer-register"
+                        to={user?.role === 'organiser' ? '/organizer-dashboard' : '/organizer-register'}
                         onClick={() => setIsProfileOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors text-left"
                       >
                         <Ticket size={16} /> List Your Event
                       </Link>
@@ -231,18 +277,18 @@ const Navbar = () => {
                       <Link
                         to="/organizer-register"
                         onClick={() => setIsProfileOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors text-left"
                       >
                         <ArrowUpRight size={16} /> List Your Event
                       </Link>
                       <button
-                        onClick={() => { dispatch(openAuthModal()); setIsProfileOpen(false); }}
+                        onClick={() => { dispatch(openAuthModal({ mode: 'login', role: 'customer' })); setIsProfileOpen(false); }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
                       >
                         <User size={16} /> Sign In
                       </button>
                       <button
-                        onClick={() => { dispatch(openAuthModal()); setIsProfileOpen(false); }}
+                        onClick={() => { dispatch(openAuthModal({ mode: 'register', role: 'customer' })); setIsProfileOpen(false); }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors border-t border-gray-200 mt-2 pt-4"
                       >
                         <Ticket size={16} /> Create Account
@@ -315,7 +361,7 @@ const Navbar = () => {
               <Link
                 to="/organizer-register"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center justify-between p-6 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+                className="flex w-full items-center justify-between p-6 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
               >
                 <span className="text-lg font-semibold">List Your Event</span>
                 <ArrowUpRight size={24} />

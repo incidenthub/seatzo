@@ -1,231 +1,158 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, ArrowLeft, Building2, Shield, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Shield, UserPlus } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { loginStart, clearError, logoutStart, loginFailure } from '../store/slices/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import authService from '../services/auth.service';
+import { clearError, loginFailure, loginStart, loginSuccess } from '../store/slices/authSlice';
 
 const OrganizerLogin = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [showPassword, setShowPassword] = useState(false);
-
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isLoading, error, token, user } = useSelector((state) => state.auth);
+  const { token, user, isLoading, error } = useSelector((state) => state.auth);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (token && user) {
-      if (user.role === 'organiser') {
-        navigate('/organizer-dashboard');
-      } else {
-        dispatch(logoutStart());
-        const msg = user.role === 'admin'
-          ? 'Administrators must use the standard login portal.'
-          : 'Customer accounts are restricted from the Partner Portal.';
-        dispatch(loginFailure(msg));
-        navigate('/organizer-login');
-      }
+    if (!token || !user) {
+      return;
     }
-    return () => { dispatch(clearError()); };
-  }, [token, user, navigate, dispatch, error]);
 
-  const handleChange = (e) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
+    if (user.role === 'organiser') {
+      navigate('/organizer-dashboard', { replace: true });
+    } else if (user.role === 'admin') {
+      navigate('/admin-dashboard', { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  }, [navigate, token, user]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    dispatch(loginStart(formData));
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    dispatch(clearError());
+    dispatch(loginStart());
+
+    try {
+      const response = await authService.login(email, password);
+      dispatch(loginSuccess(response.data));
+    } catch (err) {
+      dispatch(loginFailure(err.response?.data?.error || err.response?.data?.message || 'Login failed'));
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <Link to="/" className="text-2xl font-bold text-gray-900">
-              SEATZO<span className="text-red-600">.</span>
+    <div className="flex min-h-screen bg-white">
+      <div className="hidden lg:flex w-1/2 bg-black relative items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-0 h-full w-full bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-stone-500 via-transparent to-transparent" />
+        </div>
+        <div className="relative z-10 text-center px-20">
+          <motion.h2
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="mb-6 text-7xl font-black leading-none tracking-widest text-white italic"
+          >
+            ORGANISER <br /> ACCESS.
+          </motion.h2>
+          <p className="text-xl font-medium tracking-tight text-stone-500">
+            Sign in to manage events, bookings, and your organiser dashboard.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex w-full items-center justify-center p-8 md:p-20 lg:w-1/2">
+        <div className="w-full max-w-md">
+          <div className="mb-16 flex items-center justify-between">
+            <Link to="/" className="text-2xl font-black tracking-tighter">
+              SEATZO.
             </Link>
             <Link
-              to="/"
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              to="/organizer-register"
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:gap-4"
             >
-              <ArrowLeft size={16} />
-              Back to Home
+              New organiser? <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="mb-10">
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#DC3558]">
+              Organiser login
+            </p>
+            <h1 className="mb-4 text-5xl font-bold tracking-tight">Welcome back</h1>
+            <p className="font-medium text-stone-500">
+              Use your organiser credentials to continue.
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-8 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold uppercase tracking-widest text-red-600">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="group">
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 transition-colors group-focus-within:text-black">
+                Email Address
+              </label>
+              <input
+                type="email"
+                required
+                autoComplete="username"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="w-full border-b border-stone-200 bg-transparent pb-4 text-lg font-medium outline-none transition-all placeholder:text-stone-200 focus:border-black"
+                placeholder="organiser@example.com"
+              />
+            </div>
+
+            <div className="group">
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 transition-colors group-focus-within:text-black">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full border-b border-stone-200 bg-transparent pb-4 pr-12 text-lg font-medium outline-none transition-all placeholder:text-stone-200 focus:border-black"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((current) => !current)}
+                  className="absolute right-0 top-0 text-stone-400 transition-colors hover:text-black"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex w-full items-center justify-center gap-4 rounded-full bg-black py-5 text-xs font-black uppercase tracking-widest text-white transition-all hover:gap-6 disabled:opacity-50"
+              >
+                {isLoading ? 'Signing in...' : 'Sign In'}
+                {!isLoading && <ArrowRight size={18} />}
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-12 flex items-center justify-between border-t border-stone-100 pt-8 text-xs font-bold uppercase tracking-widest">
+            <span className="text-stone-400">Need an organiser account?</span>
+            <Link to="/organizer-register" className="flex items-center gap-2 text-black hover:italic">
+              <UserPlus size={14} /> Create account
             </Link>
           </div>
         </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-12"
-          >
-            <div className="inline-flex items-center gap-2 bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm font-medium mb-4">
-              <Building2 size={16} />
-              Partner Portal
-            </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Welcome Back, Organizer
-            </h1>
-            <p className="text-xl text-gray-600">
-              Access your dashboard to manage events and tickets
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            {/* Benefits Sidebar */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="lg:col-span-1 space-y-6"
-            >
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Secure Access</h3>
-                </div>
-                <p className="text-sm text-gray-600">
-                  Your organizer account is protected with enterprise-grade security.
-                </p>
-              </div>
-
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-green-600" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Dashboard Access</h3>
-                </div>
-                <p className="text-sm text-gray-600">
-                  Manage your events, track sales, and monitor performance in real-time.
-                </p>
-              </div>
-
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <ArrowRight className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Quick Actions</h3>
-                </div>
-                <p className="text-sm text-gray-600">
-                  Create new events, update pricing, and manage ticket inventory instantly.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Login Form */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="lg:col-span-2"
-            >
-              <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Sign In to Your Account</h2>
-
-                {error && (
-                  <div className="mb-6 p-4 rounded-lg border border-red-200 bg-red-50 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-medium text-red-900">Login Error</p>
-                      <p className="text-sm text-red-800 mt-1">{error}</p>
-                    </div>
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      required
-                      autoFocus
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-                      placeholder="admin@yourvenue.com"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Password
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
-                      >
-                        {showPassword ? (
-                          <>
-                            <EyeOff size={16} />
-                            Hide
-                          </>
-                        ) : (
-                          <>
-                            <Eye size={16} />
-                            Show
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      name="password"
-                      required
-                      value={formData.password}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-                      placeholder="Enter your password"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-red-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Signing In...
-                      </>
-                    ) : (
-                      <>
-                        Sign In to Dashboard
-                        <ArrowRight size={16} />
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                <div className="mt-6 text-center">
-                  <p className="text-gray-600">
-                    Don't have an organizer account?{' '}
-                    <Link to="/organizer-register" className="text-red-600 hover:text-red-700 font-medium">
-                      Register here
-                    </Link>
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </main>
+      </div>
     </div>
   );
 };

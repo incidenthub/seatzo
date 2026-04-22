@@ -7,7 +7,9 @@ import authService from '../services/auth.service';
 const VerifyEmail = () => {
   const [searchParams] = useSearchParams();
   const email = searchParams.get('email') || '';
+  const role = searchParams.get('role') || 'customer';
   const navigate = useNavigate();
+  const loginRedirectPath = role === 'organiser' ? '/organizer-login' : '/login';
 
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,8 +29,8 @@ const VerifyEmail = () => {
 
     try {
       await authService.verifyEmail(email, otp);
-      setSuccess('Email verified successfully! Redirecting to login...');
-      setTimeout(() => navigate('/login'), 2000);
+      setSuccess(`Email verified successfully! Redirecting to ${role === 'organiser' ? 'organizer login' : 'login'}...`);
+      setTimeout(() => navigate(loginRedirectPath), 2000);
     } catch (err) {
       setError(err.response?.data?.error || 'Verification failed');
     } finally {
@@ -61,7 +63,7 @@ const VerifyEmail = () => {
       {/* Left side */}
       <div className="hidden lg:flex w-1/2 bg-black relative items-center justify-center overflow-hidden">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-stone-500 via-transparent to-transparent" />
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-stone-500 via-transparent to-transparent" />
         </div>
         <div className="relative z-10 text-center px-20">
           <motion.h2
@@ -127,7 +129,7 @@ const VerifyEmail = () => {
                 className="w-full group py-5 bg-black text-white rounded-full font-black uppercase tracking-widest text-xs flex items-center justify-center gap-4 hover:gap-6 transition-all disabled:opacity-50"
               >
                 {isLoading ? 'Verifying' : 'Verify Email'}
-                {!isLoading && <ArrowRight size={18} className="translate-y-[1px]" />}
+                {!isLoading && <ArrowRight size={18} className="translate-y-px" />}
               </button>
             </div>
           </form>

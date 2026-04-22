@@ -20,7 +20,7 @@ const refreshAccessToken = async () => {
     throw new Error('Session expired');
   }
 
-  Cookies.set('accessToken', newToken, { expires: 7 });
+  Cookies.set('accessToken', newToken, { expires: 7, path: '/' });
   return newToken;
 };
 

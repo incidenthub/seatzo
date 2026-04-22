@@ -1,6 +1,8 @@
 import { createSlice } from '@reduxjs/toolkit';
 import Cookies from 'js-cookie';
 
+const COOKIE_OPTIONS = { expires: 7, path: '/' };
+
 const initialState = {
   user: Cookies.get('user') ? JSON.parse(Cookies.get('user')) : null,
   token: Cookies.get('accessToken') || null,
@@ -21,8 +23,8 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.accessToken;
       state.error = null;
-      Cookies.set('user', JSON.stringify(action.payload.user), { expires: 7 }); // 7 days
-      Cookies.set('accessToken', action.payload.accessToken, { expires: 7 });
+      Cookies.set('user', JSON.stringify(action.payload.user), COOKIE_OPTIONS);
+      Cookies.set('accessToken', action.payload.accessToken, COOKIE_OPTIONS);
     },
     loginFailure: (state, action) => {
       state.isLoading = false;
@@ -48,8 +50,8 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.error = null;
-      Cookies.remove('user');
-      Cookies.remove('accessToken');
+      Cookies.remove('user', { path: '/' });
+      Cookies.remove('accessToken', { path: '/' });
     },
     logoutFailure: (state, action) => {
       state.isLoading = false;

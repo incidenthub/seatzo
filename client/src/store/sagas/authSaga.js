@@ -18,7 +18,7 @@ function* loginSaga(action) {
     const response = yield call(authService.login, email, password);
     yield put(loginSuccess(response.data));
   } catch (error) {
-    yield put(loginFailure(error.response?.data?.message || 'Login failed'));
+    yield put(loginFailure(error.response?.data?.error || error.response?.data?.message || 'Login failed'));
   }
 }
 
@@ -28,7 +28,7 @@ function* registerSaga(action) {
     const response = yield call(authService.register, name, email, password, role);
     yield put(registerSuccess(response.data));
   } catch (error) {
-    yield put(registerFailure(error.response?.data?.message || 'Registration failed'));
+    yield put(registerFailure(error.response?.data?.error || error.response?.data?.message || 'Registration failed'));
   }
 }
 
@@ -37,7 +37,7 @@ function* logoutSaga() {
     yield call(authService.logout);
     yield put(logoutSuccess());
   } catch (error) {
-    yield put(logoutFailure(error.response?.data?.message || 'Logout failed'));
+    yield put(logoutFailure(error.response?.data?.error || error.response?.data?.message || 'Logout failed'));
   }
 }
 

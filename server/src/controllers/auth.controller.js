@@ -30,11 +30,14 @@ const setRefreshCookie = (res, token) =>
 const clearRefreshCookie = (res) =>
   res.clearCookie('refreshToken', COOKIE_OPTIONS);
 
+const normalizeEmail = (email) => email.trim().toLowerCase();
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email: rawEmail, password, role } = req.body;
+    const email = normalizeEmail(rawEmail || '');
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email and password are required' });
@@ -75,7 +78,8 @@ export const register = async (req, res) => {
 
 export const verifyEmail = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { email: rawEmail, otp } = req.body;
+    const email = normalizeEmail(rawEmail || '');
 
     if (!email || !otp) {
       return res.status(400).json({ error: 'Email and OTP are required' });
@@ -113,7 +117,8 @@ export const verifyEmail = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email: rawEmail, password } = req.body;
+    const email = normalizeEmail(rawEmail || '');
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
@@ -201,7 +206,8 @@ export const logout = (req, res) => {
 
 export const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email: rawEmail } = req.body;
+    const email = normalizeEmail(rawEmail || '');
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
@@ -233,7 +239,8 @@ export const forgotPassword = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email: rawEmail, otp, newPassword } = req.body;
+    const email = normalizeEmail(rawEmail || '');
 
     if (!email || !otp || !newPassword) {
       return res.status(400).json({ error: 'Email, OTP and new password are required' });
@@ -274,7 +281,8 @@ export const resetPassword = async (req, res) => {
 
 export const resendOTP = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email: rawEmail } = req.body;
+    const email = normalizeEmail(rawEmail || '');
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
