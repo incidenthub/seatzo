@@ -1,71 +1,84 @@
-import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import LoadingSpinner from './components/UI/LoadingSpinner';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "./context/AuthContext";
 
-// Landing Pages
-const Home = lazy(() => import('./pages/Home'));
-const About = lazy(() => import('./pages/About'));
-const Contact = lazy(() => import('./pages/Contact'));
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import ProtectedRoute from "./components/ProtectedRoute";
 
-// Auth Pages
-const Login = lazy(() => import('./pages/Login'));
-const Register = lazy(() => import('./pages/Register'));
-const OrganizerRegister = lazy(() => import('./pages/OrganizerRegister'));
-const OrganizerLogin = lazy(() => import('./pages/OrganizerLogin'));
-const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+import LandingPage from "./pages/LandingPage";
+import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
+import Login from "./pages/Login";
+import EventListings from "./pages/EventListings";
+import EventDetail from "./pages/EventDetail";
+import Checkout from "./pages/Checkout";
+import BookingConfirmation from "./pages/BookingConfirmation";
+import UserDashboard from "./pages/UserDashboard";
 
-// Event Pages
-const EventListings = lazy(() => import('./pages/EventListings'));
-const EventDetail = lazy(() => import('./pages/EventDetail'));
-const BookingPage = lazy(() => import('./pages/BookingPage'));
-const BookingConfirmation = lazy(() => import('./pages/BookingConfirmation'));
-
-// Dashboard Pages
-const UserDashboard = lazy(() => import('./pages/UserDashboard'));
-const OrganizerDashboard = lazy(() => import('./pages/OrganizerDashboard'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const Profile = lazy(() => import('./pages/Profile'));
-
-import AuthModal from './components/Auth/AuthModal';
-
-function App() {
+const App = () => {
   return (
-    <div className="min-h-screen bg-surface grain">
-      <AuthModal />
-      <Suspense fallback={<LoadingSpinner fullPage />}>
+    <BrowserRouter>
+      <AuthProvider>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: "#18181b",
+              color: "#fff",
+              border: "1px solid #27272a",
+            },
+          }}
+        />
         <Routes>
-          {/* Landing & Info Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-
-          {/* Auth Routes */}
-          <Route path="/login" element={<Login />} />
+          {/* Auth pages — no navbar, no footer */}
           <Route path="/register" element={<Register />} />
-          <Route path="/organizer-login" element={<OrganizerLogin />} />
-          <Route path="/organizer-register" element={<OrganizerRegister />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/login" element={<Login />} />
 
-          {/* Event Routes */}
-          <Route path="/events" element={<EventListings />} />
-          <Route path="/events/:id" element={<EventDetail />} />
-          <Route path="/events/:id/book" element={<BookingPage />} />
-          <Route path="/events/:id/book/:bookingId" element={<BookingPage />} />
-          <Route path="/booking-confirmation/:id" element={<BookingConfirmation />} />
-
-          {/* Dashboard Routes */}
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/organizer-dashboard" element={<OrganizerDashboard />} />
-          <Route path="/admin-dashboard" element={<AdminDashboard />} />
-
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* App pages — with navbar and footer */}
+          <Route
+            path="/*"
+            element={
+              <>
+                <Navbar />
+                <Routes>
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/events" element={<EventListings />} />
+                  <Route path="/events/:id" element={<EventDetail />} />
+                  <Route
+                    path="/checkout"
+                    element={
+                      <ProtectedRoute>
+                        <Checkout />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/booking-confirmation"
+                    element={
+                      <ProtectedRoute>
+                        <BookingConfirmation />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <UserDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+                <Footer />
+              </>
+            }
+          />
         </Routes>
-      </Suspense>
-    </div>
+      </AuthProvider>
+    </BrowserRouter>
   );
-}
+};
 
 export default App;

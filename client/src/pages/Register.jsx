@@ -1,187 +1,120 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { registerStart, clearError } from '../store/slices/authSlice';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import toast from "react-hot-toast";
 
 const Register = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'customer',
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const dispatch = useDispatch();
+  const { register } = useAuth();
   const navigate = useNavigate();
-  const { isLoading, error, user, token } = useSelector((state) => state.auth);
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "customer",
+  });
+  const [loading, setLoading] = useState(false);
 
-  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
 
-  useEffect(() => {
-    if (token) navigate('/dashboard');
-    return () => { dispatch(clearError()); };
-  }, [token, navigate, dispatch]);
-
-  // Watch for registerSuccess — isLoading went false, no error, and we're not logged in
-  useEffect(() => {
-    if (!isLoading && !error && registrationSuccess) {
-      navigate(`/verify-email?email=${encodeURIComponent(formData.email)}`);
-    }
-  }, [isLoading, error, registrationSuccess, navigate, formData.email]);
-
-  const handleChange = (e) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match");
-      return;
+    setLoading(true);
+    try {
+      await register(form.name, form.email, form.password, form.role);
+      toast.success("Account created! Check your email for the OTP.");
+      navigate("/verify-email", { state: { email: form.email } });
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Registration failed");
+    } finally {
+      setLoading(false);
     }
-    dispatch(registerStart(formData));
-    setRegistrationSuccess(true);
   };
 
   return (
-    <div className="flex min-h-screen bg-white">
-      {/* Left side - Visual (Stays same for brand consistency) */}
-      <div className="hidden lg:flex w-1/2 bg-black relative items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
-           <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-stone-500 via-transparent to-transparent" />
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white">
+            Seat<span className="text-violet-400">zo</span>
+          </h1>
+          <p className="text-zinc-400 mt-2 text-sm">Create your account</p>
         </div>
-        <div className="relative z-10 text-center px-20">
-          <motion.h2 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="text-7xl font-black text-white tracking-widest leading-none mb-6 italic"
-          >
-            START <br /> YOUR JOURNEY.
-          </motion.h2>
-          <p className="text-stone-500 text-xl font-medium tracking-tight">
-            Create an account to browse, book, and manage <br /> tickets with unmatched speed.
-          </p>
-        </div>
-      </div>
 
-      {/* Right side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-20 overflow-y-auto">
-        <div className="w-full max-w-md my-auto">
-          <div className="flex justify-between items-center mb-16">
-            <Link to="/" className="text-2xl font-black tracking-tighter">
-              SEATZO.
-            </Link>
-            <Link to="/login" className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 hover:gap-4 transition-all">
-              <ArrowLeft size={14} /> Back to Login
-            </Link>
-          </div>
-
-          <div className="mb-10">
-            <h1 className="text-5xl font-bold tracking-tight mb-4">Create Account</h1>
-            <p className="text-stone-500 font-medium">Join the next generation of event access.</p>
-          </div>
-
-          {error && (
-            <div className="mb-8 p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100 uppercase tracking-widest">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-x-6 gap-y-8">
-            <div className="col-span-2 group">
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-2 group-focus-within:text-black transition-colors">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="text-zinc-400 text-sm block mb-2">
                 Full Name
               </label>
               <input
-                type="text"
                 name="name"
-                required
-                autoFocus
-                value={formData.name}
+                value={form.name}
                 onChange={handleChange}
-                className="w-full pb-4 bg-transparent border-b border-stone-200 outline-none focus:border-black transition-all text-lg font-medium placeholder:text-stone-200"
                 placeholder="John Doe"
+                required
+                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-violet-500 transition-colors"
               />
             </div>
 
-            <div className="col-span-2 group">
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-2 group-focus-within:text-black transition-colors">
-                Email Address
+            <div>
+              <label className="text-zinc-400 text-sm block mb-2">Email</label>
+              <input
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="you@example.com"
+                required
+                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-violet-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="text-zinc-400 text-sm block mb-2">
+                Password
               </label>
               <input
-                type="email"
-                name="email"
-                required
-                value={formData.email}
+                name="password"
+                type="password"
+                value={form.password}
                 onChange={handleChange}
-                className="w-full pb-4 bg-transparent border-b border-stone-200 outline-none focus:border-black transition-all text-lg font-medium placeholder:text-stone-200"
-                placeholder="name@example.com"
+                placeholder="Min 8 characters"
+                required
+                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-violet-500 transition-colors"
               />
             </div>
 
-            <div className="col-span-2 group">
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-2 group-focus-within:text-black transition-colors">
-                I am a
+            <div>
+              <label className="text-zinc-400 text-sm block mb-2">
+                Account Type
               </label>
               <select
                 name="role"
-                value={formData.role}
+                value={form.role}
                 onChange={handleChange}
-                className="w-full pb-4 bg-transparent border-b border-stone-200 outline-none focus:border-black transition-all text-lg font-medium"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-violet-500 transition-colors"
               >
                 <option value="customer">Customer</option>
                 <option value="organiser">Organiser</option>
               </select>
             </div>
 
-            <div className="group">
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-2 group-focus-within:text-black transition-colors">
-                Password
-              </label>
-              <input
-                type="password"
-                name="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full pb-4 bg-transparent border-b border-stone-200 outline-none focus:border-black transition-all text-lg font-medium placeholder:text-stone-100"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <div className="group">
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-2 group-focus-within:text-black transition-colors">
-                Confirm
-              </label>
-              <input
-                type="password"
-                name="confirmPassword"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="w-full pb-4 bg-transparent border-b border-stone-200 outline-none focus:border-black transition-all text-lg font-medium placeholder:text-stone-100"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <div className="col-span-2 pt-6">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full group py-5 bg-black text-white rounded-full font-black uppercase tracking-widest text-xs flex items-center justify-center gap-4 hover:gap-6 transition-all disabled:opacity-50"
-              >
-                {isLoading ? 'Processing' : 'Create Account'}
-                {!isLoading && <ArrowRight size={18} className="translate-y-[1px]" />}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-violet-600 hover:bg-violet-500 disabled:bg-violet-800 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors text-sm"
+            >
+              {loading ? "Creating account..." : "Create Account"}
+            </button>
           </form>
 
-          <footer className="mt-12 text-[9px] font-bold text-stone-400 uppercase tracking-widest leading-relaxed">
-            By creating an account, you agree to our <a href="#" className="text-black">Terms of Service</a> and <a href="#" className="text-black">Privacy Policy</a>.
-          </footer>
+          <p className="text-zinc-500 text-sm text-center mt-6">
+            Already have an account?{" "}
+            <Link to="/login" className="text-violet-400 hover:text-violet-300">
+              Sign in
+            </Link>
+          </p>
         </div>
       </div>
     </div>
