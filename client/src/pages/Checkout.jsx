@@ -55,9 +55,10 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
       const { data } = await api.post("/payments/create", {
         bookingId: booking._id,
         idempotencyKey,
+        amount: grandTotal,
       });
 
-      const { clientSecret } = data;
+      const { clientSecret } = data.data;
 
       // Step 2 — confirm card payment with Stripe
       const { error, paymentIntent } = await stripe.confirmCardPayment(
@@ -92,8 +93,13 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
         });
       }
     } catch (err) {
+      const errorData = err.response?.data?.error;
       const message =
-        err.response?.data?.error || "Payment failed. Please try again.";
+        typeof errorData === "string"
+          ? errorData
+          : errorData?.message ||
+            err.message ||
+            "Payment failed. Please try again.";
       toast.error(message);
       setCardError(message);
     } finally {
