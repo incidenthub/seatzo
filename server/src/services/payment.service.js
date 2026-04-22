@@ -1,24 +1,28 @@
-import stripe from '../config/stripe.js';
-import Payment from '../models/payment.model.js';
-import AppError from '../utils/appError.js';
-import { PAYMENT_STATUS, DEFAULT_CURRENCY } from '../utils/constants.js';
-import logger from '../config/logger.js';
+import stripe from "../config/stripe.js";
+import Payment from "../models/payment.model.js";
+import AppError from "../utils/appError.js";
+import { PAYMENT_STATUS, DEFAULT_CURRENCY } from "../utils/constants.js";
+import logger from "../config/logger.js";
 
 export const paymentService = {
-  /**
-   * Orchestrates the creation of a Payment Intent securely with idempotency.
-   */
   async createPaymentIntent({ userId, bookingId, amount, idempotencyKey }) {
     // 1. Idempotency Check (Fast Path)
     const existingPayment = await Payment.findOne({ idempotencyKey }).lean();
 
     if (existingPayment) {
       if (existingPayment.amount !== amount) {
-        logger.warn('Tampered idempotency attempt: amount mismatch', { idempotencyKey, amount, existingAmount: existingPayment.amount });
-        throw new AppError('Idempotency key already used with a different amount', 400);
+        logger.warn("Tampered idempotency attempt: amount mismatch", {
+          idempotencyKey,
+          amount,
+          existingAmount: existingPayment.amount,
+        });
+        throw new AppError(
+          "Idempotency key already used with a different amount",
+          400,
+        );
       }
 
-      logger.info('Idempotency key hit. Returning existing payment intent.', {
+      logger.info("Idempotency key hit. Returning existing payment intent.", {
         idempotencyKey,
         paymentId: existingPayment._id,
       });
@@ -44,10 +48,13 @@ export const paymentService = {
             userId: userId,
           },
         },
-        { idempotencyKey }
+        { idempotencyKey },
       );
     } catch (err) {
-      logger.error('Failed to create Stripe Payment Intent', { error: err.message, idempotencyKey });
+      logger.error("Failed to create Stripe Payment Intent", {
+        error: err.message,
+        idempotencyKey,
+      });
       throw new AppError(`Payment gateway error: ${err.message}`, 502);
     }
 
@@ -61,12 +68,15 @@ export const paymentService = {
         currency: DEFAULT_CURRENCY,
         status: PAYMENT_STATUS.INITIATED,
         stripePaymentIntentId: paymentIntent.id,
-        stripeClientSecret: paymentIntent.client_secret,
+        stripeClientSecret: paymentIntent.client_secret, // ✅ fixed
         idempotencyKey,
       });
     } catch (err) {
       if (err.code === 11000) {
-        logger.info('Race condition mitigated: Duplicate key error handled gracefully', { idempotencyKey });
+        logger.info(
+          "Race condition mitigated: Duplicate key error handled gracefully",
+          { idempotencyKey },
+        );
         const racedPayment = await Payment.findOne({ idempotencyKey }).lean();
         return {
           paymentId: racedPayment._id,
@@ -81,28 +91,29 @@ export const paymentService = {
 
     return {
       paymentId: payment._id,
-      clientSecret: paymentIntent.client_secret,
+      clientSecret: paymentIntent.client_secret, // ✅ fixed
       status: payment.status,
       amount: payment.amount,
       currency: payment.currency,
     };
   },
 
-  /**
-   * Retrieves the real-time status of a payment gracefully from DB cache.
-   */
   async getPaymentStatus(paymentId, userId, userRole) {
     const payment = await Payment.findById(paymentId)
-      .select('status amount currency user stripePaymentIntentId failureReason updatedAt')
+      .select(
+        "status amount currency user stripePaymentIntentId failureReason updatedAt",
+      )
       .lean();
 
     if (!payment) {
-      throw new AppError('Payment not found', 404);
+      throw new AppError("Payment not found", 404);
     }
 
-    // Authorization
-    if (payment.user.toString() !== userId && userRole !== 'admin') {
-      throw new AppError('You do not have permission to view this payment', 403);
+    if (payment.user.toString() !== userId && userRole !== "admin") {
+      throw new AppError(
+        "You do not have permission to view this payment",
+        403,
+      );
     }
 
     return {
@@ -116,25 +127,25 @@ export const paymentService = {
     };
   },
 
-  /**
-   * Processes a refund via the Stripe API securely and synchronously.
-   * Modifies the internal state to REFUNDED.
-   */
   async processRefund(paymentId, userId, userRole) {
     const payment = await Payment.findById(paymentId);
 
     if (!payment) {
-      throw new AppError('Payment not found', 404);
+      throw new AppError("Payment not found", 404);
     }
 
-    // Role-based Authorization
-    if (payment.user.toString() !== userId && userRole !== 'admin') {
-      throw new AppError('You do not have permission to refund this payment', 403);
+    if (payment.user.toString() !== userId && userRole !== "admin") {
+      throw new AppError(
+        "You do not have permission to refund this payment",
+        403,
+      );
     }
 
-    // State Guard: Only SUCCESS payments can be refunded
     if (payment.status !== PAYMENT_STATUS.SUCCESS) {
-      throw new AppError(`Cannot refund a payment that is in ${payment.status} state`, 400);
+      throw new AppError(
+        `Cannot refund a payment that is in ${payment.status} state`,
+        400,
+      );
     }
 
     let refundResult;
@@ -143,31 +154,35 @@ export const paymentService = {
         payment_intent: payment.stripePaymentIntentId,
       });
     } catch (err) {
-      logger.error('Stripe Refund API Failed', { error: err.message, paymentIntentId: payment.stripePaymentIntentId });
+      logger.error("Stripe Refund API Failed", {
+        error: err.message,
+        paymentIntentId: payment.stripePaymentIntentId,
+      });
       throw new AppError(`Refund failed via gateway: ${err.message}`, 502);
     }
 
     payment.status = PAYMENT_STATUS.REFUNDED;
     payment.refundId = refundResult.id;
 
-    // Push local audit log representing the dashboard action
     payment.webhookEvents.push({
       eventId: refundResult.id,
-      type: 'refund.manual_api_trigger',
-      receivedAt: new Date()
+      type: "refund.manual_api_trigger",
+      receivedAt: new Date(),
     });
 
     await payment.save();
 
-    logger.info('Database Updated: Payment refunded successfully', { paymentId: payment._id, refundId: refundResult.id });
+    logger.info("Database Updated: Payment refunded successfully", {
+      paymentId: payment._id,
+      refundId: refundResult.id,
+    });
 
-    // Inform Person A/B integration here (e.g. Booking -> REFUNDED, Seats -> AVAILABLE)
-    logger.info('>> Ready for Bookings Refund Integration via Person A/B <<');
+    logger.info(">> Ready for Bookings Refund Integration via Person A/B <<");
 
     return {
       paymentId: payment._id,
       status: payment.status,
-      refundId: payment.refundId
+      refundId: payment.refundId,
     };
-  }
+  },
 };

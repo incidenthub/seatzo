@@ -45,7 +45,7 @@ async function runTests() {
     
     let data = await res.json();
     if (!res.ok) throw new Error(`Status ${res.status}: ${JSON.stringify(data)}`);
-    console.log('  ✓ Success! Got client_secret from Stripe:', data.data.clientSecret.substring(0, 15) + '...');
+    console.log('  ✓ Success! Got clientSecret from Stripe:', data.data.clientSecret.substring(0, 15) + '...');
     const paymentId = data.data.paymentId;
 
     console.log('\n[2/3] Testing Idempotency (Same key & amount)...');
