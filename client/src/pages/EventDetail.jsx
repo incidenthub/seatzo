@@ -1,333 +1,253 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import {
-  Calendar, MapPin, Users, Info, Share2, Heart,
-  ChevronRight, Star, Clock, Languages, ShieldCheck, ArrowLeft
-} from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useDispatch, useSelector } from 'react-redux';
-import eventService from '../services/event.service';
-import LoadingSpinner from '../components/UI/LoadingSpinner';
-import Navbar from '../components/UI/Navbar';
-import Footer from '../components/UI/Footer';
-import { openAuthModal } from '../store/slices/uiSlice';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import api from '../utils/axios';
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
+
+const SECTION_COLORS = {
+  PREMIUM: 'bg-amber-500/20 border-amber-500/50 text-amber-300',
+  GOLD: 'bg-yellow-500/20 border-yellow-500/50 text-yellow-300',
+  SILVER: 'bg-zinc-500/20 border-zinc-400/50 text-zinc-300',
+  GENERAL: 'bg-blue-500/20 border-blue-500/50 text-blue-300',
+};
+
+const STATUS_COLORS = {
+  AVAILABLE: 'bg-zinc-700 hover:bg-violet-600 border-zinc-600 cursor-pointer text-white',
+  LOCKED: 'bg-yellow-900/50 border-yellow-700 cursor-not-allowed text-yellow-500',
+  BOOKED: 'bg-red-900/50 border-red-800 cursor-not-allowed text-red-500',
+  DISABLED: 'bg-zinc-900 border-zinc-800 cursor-not-allowed text-zinc-700',
+  SELECTED: 'bg-violet-600 border-violet-400 cursor-pointer text-white ring-2 ring-violet-400',
+};
 
 const EventDetail = () => {
   const { id } = useParams();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [event, setEvent] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pricing, setPricing] = useState(null);
-  const [isLiked, setIsLiked] = useState(false);
-  const dispatch = useDispatch();
-  const { token } = useSelector((state) => state.auth);
 
-  useEffect(() => {
-    fetchEvent();
-  }, [id]);
+  const [event, setEvent] = useState(null);
+  const [seats, setSeats] = useState([]);
+  const [selected, setSelected] = useState([]);
+  const [pricing, setPricing] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [locking, setLocking] = useState(false);
+  const pollRef = useRef(null);
+  const timerRef = useRef(null);
 
   const fetchEvent = async () => {
+    const res = await api.get(`/events/${id}`);
+    setEvent(res.data.event);
+  };
+
+  const fetchSeats = async () => {
     try {
-      const response = await eventService.getEventById(id);
-      const eventData = response.data.event || response.data;
-      setEvent(eventData);
-      setPricing({ currentPrice: Math.round(eventData.basePrice) });
-      setError(null);
+      const res = await api.get(`/seats/${id}`);
+      setSeats(res.data.seats);
+      setPricing(res.data.pricing);
     } catch (err) {
-      setError('Event details currently unavailable.');
-    } finally {
-      setIsLoading(false);
+      console.error(err);
     }
   };
 
-  if (isLoading) return <LoadingSpinner fullPage />;
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      await fetchEvent();
+      await fetchSeats();
+      setLoading(false);
+    };
+    init();
 
-  if (error || !event) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex flex-col items-center justify-center h-[70vh] p-6 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Event Not Found</h2>
-          <p className="text-gray-600 mb-8">The event you're looking for is currently unavailable.</p>
-          <Link
-            to="/events"
-            className="bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors"
-          >
-            Back to Events
-          </Link>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+    pollRef.current = setInterval(fetchSeats, 5000);
+    return () => {
+      clearInterval(pollRef.current);
+      clearInterval(timerRef.current);
+    };
+  }, [id]);
 
-  const formattedDate = new Date(event.date).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
+  const handleSeatClick = (seat) => {
+    if (seat.status !== 'AVAILABLE') return;
+    if (selected.find((s) => s.seatNumber === seat.seatNumber)) {
+      setSelected(selected.filter((s) => s.seatNumber !== seat.seatNumber));
+    } else {
+      if (selected.length >= 6) { toast.error('Max 6 seats per booking'); return; }
+      setSelected([...selected, seat]);
+    }
+  };
+
+  const handleLock = async () => {
+    if (!user) { toast.error('Please login first'); navigate('/login'); return; }
+    if (selected.length === 0) { toast.error('Select at least one seat'); return; }
+
+    setLocking(true);
+    try {
+      await api.post('/seats/lock', {
+        eventId: id,
+        seatIds: selected.map((s) => s.seatNumber),
+      });
+
+      toast.success('Seats locked for 5 minutes!');
+
+      let secs = 300;
+      timerRef.current = setInterval(() => {
+        secs--;
+        if (secs <= 0) {
+          clearInterval(timerRef.current);
+          setSelected([]);
+          toast.error('Lock expired. Please re-select your seats.');
+        }
+      }, 1000);
+
+      navigate('/checkout', {
+        state: {
+          eventId: id,
+          event,
+          selectedSeats: selected,
+          pricing,
+        },
+      });
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not lock seats');
+    } finally {
+      setLocking(false);
+    }
+  };
+
+  const formatPrice = (paise) => `₹${(paise / 100).toLocaleString('en-IN')}`;
+  const formatDate = (date) => new Date(date).toLocaleDateString('en-IN', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
 
-  const formattedTime = new Date(event.date).toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  const grouped = seats.reduce((acc, seat) => {
+    const key = seat.section;
+    if (!acc[key]) acc[key] = {};
+    if (!acc[key][seat.row]) acc[key][seat.row] = [];
+    acc[key][seat.row].push(seat);
+    return acc;
+  }, {});
+
+  if (loading) return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!event) return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400">
+      Event not found
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
+    <div className="min-h-screen bg-zinc-950 text-white">
+      {/* Event header */}
+      <div className="bg-gradient-to-b from-violet-950/40 to-zinc-950 px-6 py-12">
+        <div className="max-w-5xl mx-auto">
+          <span className="text-xs bg-violet-900/50 text-violet-300 px-3 py-1 rounded-full capitalize">
+            {event.category}
+          </span>
+          <h1 className="text-3xl font-bold mt-3 mb-2">{event.title}</h1>
+          <p className="text-zinc-400 text-sm">{event.venue} · {event.city}</p>
+          <p className="text-zinc-500 text-sm mt-1">{formatDate(event.date)}</p>
 
-      {/* Hero Section */}
-      <section className="relative bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Back
-          </button>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Event Poster */}
-            <div className="lg:col-span-1">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="relative overflow-hidden rounded-lg shadow-lg"
-              >
-                <img
-                  src={event.posterUrl}
-                  alt={event.title}
-                  className="w-full h-auto object-cover"
-                />
-                <div className="absolute top-4 left-4">
-                  <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                    {event.category}
-                  </span>
-                </div>
-              </motion.div>
+          {pricing && (
+            <div className="mt-4 flex items-center gap-3">
+              <span className="text-2xl font-bold text-violet-400">
+                {formatPrice(pricing.price)}
+              </span>
+              {pricing.multiplier > 1 && (
+                <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-1 rounded-md">
+                  {pricing.multiplier.toFixed(1)}× surge
+                </span>
+              )}
             </div>
-
-            {/* Event Details */}
-            <div className="lg:col-span-2 space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-                  {event.title}
-                </h1>
-
-                <div className="flex items-center space-x-4 mb-6">
-                  <div className="flex items-center">
-                    <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                    <span className="ml-1 text-gray-700 font-medium">4.5</span>
-                    <span className="ml-1 text-gray-500">(2.1k reviews)</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="w-5 h-5 text-red-600" />
-                    <div>
-                      <p className="font-medium text-gray-900">{formattedDate}</p>
-                      <p className="text-sm text-gray-600">{formattedTime}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    <MapPin className="w-5 h-5 text-red-600" />
-                    <div>
-                      <p className="font-medium text-gray-900">{event.venue}</p>
-                      <p className="text-sm text-gray-600">{event.city}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Starting from</p>
-                    <p className="text-3xl font-bold text-red-600">
-                      ₹{pricing?.currentPrice?.toLocaleString('en-IN')}
-                    </p>
-                  </div>
-
-                  {token ? (
-                    <Link
-                      to={`/events/${id}/book`}
-                      className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center"
-                    >
-                      Book Tickets
-                      <ChevronRight className="w-4 h-4 ml-2" />
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => dispatch(openAuthModal({ mode: 'login', role: 'customer' }))}
-                      className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center"
-                    >
-                      Book Tickets
-                      <ChevronRight className="w-4 h-4 ml-2" />
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Event Information */}
-      <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-8">
-              {/* About */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white rounded-lg shadow-sm p-6"
-              >
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">About the Event</h2>
-                <p className="text-gray-700 leading-relaxed">
-                  {event.description}
-                </p>
-              </motion.div>
-
-              {/* Venue Information */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white rounded-lg shadow-sm p-6"
-              >
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Venue Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex items-start space-x-4">
-                    <MapPin className="w-6 h-6 text-red-600 mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{event.venue}</h3>
-                      <p className="text-gray-600">{event.city}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-4">
-                    <ShieldCheck className="w-6 h-6 text-green-600 mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Safety Measures</h3>
-                      <p className="text-gray-600">Sanitized venue, mask required, social distancing</p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Quick Actions */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-white rounded-lg shadow-sm p-6"
-              >
-                <h3 className="font-semibold text-gray-900 mb-4">Quick Actions</h3>
-                <div className="space-y-3">
-                  <button
-                    onClick={() => setIsLiked(!isLiked)}
-                    className={`w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg border transition-colors ${
-                      isLiked
-                        ? 'border-red-600 text-red-600 bg-red-50'
-                        : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-                    <span>{isLiked ? 'Added to Favorites' : 'Add to Favorites'}</span>
-                  </button>
-
-                  <button className="w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg border border-gray-300 text-gray-700 hover:border-gray-400 transition-colors">
-                    <Share2 className="w-4 h-4" />
-                    <span>Share Event</span>
-                  </button>
-                </div>
-              </motion.div>
-
-              {/* Organizer Info */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="bg-white rounded-lg shadow-sm p-6"
-              >
-                <h3 className="font-semibold text-gray-900 mb-4">Organizer</h3>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                    <Users className="w-5 h-5 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      {event.organiser?.name || 'Authorized Partner'}
-                    </p>
-                    <p className="text-sm text-gray-600">Event Organizer</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Offers */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="bg-linear-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200"
-              >
-                <div className="flex items-start space-x-3">
-                  <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold text-blue-900 mb-2">Special Offer</h3>
-                    <p className="text-sm text-blue-800">
-                      Get 25% off on food and beverages with select credit cards.
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Mobile Booking Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-600">Starting from</p>
-            <p className="text-xl font-bold text-red-600">
-              ₹{pricing?.currentPrice?.toLocaleString('en-IN')}
-            </p>
-          </div>
-          {token ? (
-            <Link
-              to={`/events/${id}/book`}
-              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
-            >
-              Book Now
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => dispatch(openAuthModal({ mode: 'login', role: 'customer' }))}
-              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
-            >
-              Book Now
-            </button>
           )}
         </div>
       </div>
 
-      <Footer />
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4 mb-8 text-xs">
+          {[
+            { label: 'Available', color: 'bg-zinc-700' },
+            { label: 'Selected', color: 'bg-violet-600' },
+            { label: 'Locked', color: 'bg-yellow-900' },
+            { label: 'Booked', color: 'bg-red-900' },
+          ].map(({ label, color }) => (
+            <div key={label} className="flex items-center gap-2">
+              <div className={`w-4 h-4 rounded ${color}`} />
+              <span className="text-zinc-400">{label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Stage indicator */}
+        <div className="bg-zinc-800 text-zinc-400 text-xs text-center py-2 rounded-lg mb-8 tracking-widest uppercase">
+          Stage / Screen
+        </div>
+
+        {/* Seat map */}
+        <div className="space-y-8">
+          {Object.entries(grouped).map(([section, rows]) => (
+            <div key={section}>
+              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg border text-xs font-medium mb-4 ${SECTION_COLORS[section] || 'bg-zinc-800 border-zinc-700 text-zinc-300'}`}>
+                {section}
+              </div>
+
+              <div className="space-y-2">
+                {Object.entries(rows).map(([row, rowSeats]) => (
+                  <div key={row} className="flex items-center gap-2">
+                    <span className="text-zinc-600 text-xs w-5 text-right">{row}</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {rowSeats.map((seat) => {
+                        const isSelected = selected.find((s) => s.seatNumber === seat.seatNumber);
+                        const statusKey = isSelected ? 'SELECTED' : seat.status;
+                        return (
+                          <button
+                            key={seat.seatNumber}
+                            onClick={() => handleSeatClick(seat)}
+                            title={`${seat.seatNumber} — ${formatPrice(seat.price)}`}
+                            className={`w-8 h-8 rounded text-xs border transition-all ${STATUS_COLORS[statusKey]}`}
+                          >
+                            {seat.seatNumber.replace(row, '')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Booking bar */}
+        {selected.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 px-6 py-4">
+            <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+              <div>
+                <p className="text-white font-medium">
+                  {selected.length} seat{selected.length > 1 ? 's' : ''} selected
+                </p>
+                <p className="text-zinc-400 text-sm">
+                  {selected.map((s) => s.seatNumber).join(', ')}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-violet-400 font-bold text-lg">
+                  {pricing ? formatPrice(pricing.price * selected.length) : '—'}
+                </span>
+                <button
+                  onClick={handleLock}
+                  disabled={locking}
+                  className="bg-violet-600 hover:bg-violet-500 disabled:bg-violet-800 text-white font-medium px-6 py-3 rounded-lg transition-colors text-sm"
+                >
+                  {locking ? 'Locking...' : 'Proceed to Checkout'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
