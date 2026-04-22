@@ -5,11 +5,12 @@ import {
   ChevronRight, Star, Clock, Languages, ShieldCheck, ArrowLeft
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import eventService from '../services/event.service';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import Navbar from '../components/UI/Navbar';
 import Footer from '../components/UI/Footer';
+import { openAuthModal } from '../store/slices/uiSlice';
 
 const EventDetail = () => {
   const { id } = useParams();
@@ -19,6 +20,7 @@ const EventDetail = () => {
   const [error, setError] = useState(null);
   const [pricing, setPricing] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
+  const dispatch = useDispatch();
   const { token } = useSelector((state) => state.auth);
 
   useEffect(() => {
@@ -152,13 +154,24 @@ const EventDetail = () => {
                     </p>
                   </div>
 
-                  <Link
-                    to={token ? `/events/${id}/book` : '/login'}
-                    className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center"
-                  >
-                    Book Tickets
-                    <ChevronRight className="w-4 h-4 ml-2" />
-                  </Link>
+                  {token ? (
+                    <Link
+                      to={`/events/${id}/book`}
+                      className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center"
+                    >
+                      Book Tickets
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => dispatch(openAuthModal({ mode: 'login', role: 'customer' }))}
+                      className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center"
+                    >
+                      Book Tickets
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </button>
+                  )}
                 </div>
               </motion.div>
             </div>
@@ -269,7 +282,7 @@ const EventDetail = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200"
+                className="bg-linear-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200"
               >
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-600 mt-0.5" />
@@ -295,12 +308,22 @@ const EventDetail = () => {
               ₹{pricing?.currentPrice?.toLocaleString('en-IN')}
             </p>
           </div>
-          <Link
-            to={token ? `/events/${id}/book` : '/login'}
-            className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
-          >
-            Book Now
-          </Link>
+          {token ? (
+            <Link
+              to={`/events/${id}/book`}
+              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+            >
+              Book Now
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => dispatch(openAuthModal({ mode: 'login', role: 'customer' }))}
+              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+            >
+              Book Now
+            </button>
+          )}
         </div>
       </div>
 

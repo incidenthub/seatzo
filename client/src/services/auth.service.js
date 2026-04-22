@@ -4,7 +4,12 @@ import { API_BASE_URL } from '../config/constants';
 
 const authService = {
   register: (name, email, password, role) =>
-    api.post('/auth/register', { name, email, password, role }),
+    api.post('/auth/register', {
+      name: String(name || '').trim(),
+      email: String(email || '').trim().toLowerCase(),
+      password: String(password || ''),
+      role: String(role || '').trim(),
+    }),
 
   verifyEmail: (email, otp) =>
     api.post('/auth/verify-email', { email, otp }),
@@ -13,7 +18,10 @@ const authService = {
     api.post('/auth/resend-otp', { email }),
 
   login: (email, password) =>
-    api.post('/auth/login', { email, password }),
+    api.post('/auth/login', {
+      email: String(email || '').trim().toLowerCase(),
+      password: String(password || ''),
+    }),
 
   logout: () =>
     api.post('/auth/logout'),

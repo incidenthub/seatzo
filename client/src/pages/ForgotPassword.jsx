@@ -61,7 +61,7 @@ const ForgotPassword = () => {
       {/* Left side */}
       <div className="hidden lg:flex w-1/2 bg-black relative items-center justify-center overflow-hidden">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-stone-500 via-transparent to-transparent" />
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-stone-500 via-transparent to-transparent" />
         </div>
         <div className="relative z-10 text-center px-20">
           <motion.h2

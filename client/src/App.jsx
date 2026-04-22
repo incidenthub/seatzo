@@ -1,5 +1,6 @@
-import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import LoadingSpinner from './components/UI/LoadingSpinner';
 
 // Landing Pages
@@ -29,11 +30,61 @@ const Profile = lazy(() => import('./pages/Profile'));
 
 import AuthModal from './components/Auth/AuthModal';
 
+const RoleGuard = ({ allowedRoles, unauthenticatedTo, unauthorizedTo, children }) => {
+  const { token, user } = useSelector((state) => state.auth);
+
+  if (!token || !user) {
+    return <Navigate to={unauthenticatedTo} replace />;
+  }
+
+  if (!allowedRoles.includes(user.role)) {
+    const redirectPath = typeof unauthorizedTo === 'function' ? unauthorizedTo(user) : unauthorizedTo;
+    return <Navigate to={redirectPath} replace />;
+  }
+
+  return children;
+};
+
+const STAFF_PATHS = ['/admin-dashboard', '/organizer-dashboard'];
+
+const isStaffPath = (pathname = '') => STAFF_PATHS.some((staffPath) => pathname === staffPath || pathname.startsWith(`${staffPath}/`));
+
+const AdminRouteLock = () => {
+  const { token, user } = useSelector((state) => state.auth);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isAdminUser = Boolean(token && user?.role === 'admin');
+  const isAllowedPath = isStaffPath(location.pathname);
+
+  useEffect(() => {
+    if (!isAdminUser || !isAllowedPath) {
+      return undefined;
+    }
+
+    const blockBackwardNavigation = () => {
+      if (!isStaffPath(window.location.pathname)) {
+        navigate('/admin-dashboard', { replace: true });
+      }
+    };
+
+    window.addEventListener('popstate', blockBackwardNavigation);
+
+    return () => window.removeEventListener('popstate', blockBackwardNavigation);
+  }, [isAdminUser, isAllowedPath, navigate]);
+
+  if (isAdminUser && !isAllowedPath) {
+    return <Navigate to="/admin-dashboard" replace />;
+  }
+
+  return null;
+};
+
 function App() {
   return (
     <div className="min-h-screen bg-surface grain">
       <AuthModal />
       <Suspense fallback={<LoadingSpinner fullPage />}>
+        <AdminRouteLock />
         <Routes>
           {/* Landing & Info Routes */}
           <Route path="/" element={<Home />} />
@@ -57,8 +108,30 @@ function App() {
 
           {/* Dashboard Routes */}
           <Route path="/profile" element={<Profile />} />
-          <Route path="/organizer-dashboard" element={<OrganizerDashboard />} />
-          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route
+            path="/organizer-dashboard"
+            element={
+              <RoleGuard
+                allowedRoles={['organiser', 'admin']}
+                unauthenticatedTo="/organizer-login"
+                unauthorizedTo="/"
+              >
+                <OrganizerDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin-dashboard"
+            element={
+              <RoleGuard
+                allowedRoles={['admin']}
+                unauthenticatedTo="/login"
+                unauthorizedTo={(currentUser) => (currentUser?.role === 'organiser' ? '/organizer-dashboard' : '/')}
+              >
+                <AdminDashboard />
+              </RoleGuard>
+            }
+          />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
