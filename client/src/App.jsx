@@ -31,50 +31,30 @@ const App = () => {
           }}
         />
         <Routes>
-          {/* Auth pages — no navbar, no footer */}
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/login" element={<Login />} />
 
-          {/* App pages — with navbar and footer */}
-          <Route
-            path="/*"
-            element={
-              <>
-                <Navbar />
-                <Routes>
-                  <Route path="/" element={<LandingPage />} />
-                  <Route path="/events" element={<EventListings />} />
-                  <Route path="/events/:id" element={<EventDetail />} />
-                  <Route
-                    path="/checkout"
-                    element={
-                      <ProtectedRoute>
-                        <Checkout />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/booking-confirmation"
-                    element={
-                      <ProtectedRoute>
-                        <BookingConfirmation />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <UserDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
-                <Footer />
-              </>
-            }
-          />
+          <Route path="/*" element={
+            <>
+              <Navbar />
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/events" element={<EventListings />} />
+                <Route path="/events/:id" element={<EventDetail />} />
+                <Route path="/checkout" element={
+                  <ProtectedRoute><Checkout /></ProtectedRoute>
+                } />
+                <Route path="/booking-confirmation" element={
+                  <ProtectedRoute><BookingConfirmation /></ProtectedRoute>
+                } />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute><UserDashboard /></ProtectedRoute>
+                } />
+              </Routes>
+              <Footer />
+            </>
+          } />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -6,16 +6,10 @@ import toast from "react-hot-toast";
 const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "customer",
-  });
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "customer" });
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,9 +38,7 @@ const Register = () => {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="text-zinc-400 text-sm block mb-2">
-                Full Name
-              </label>
+              <label className="text-zinc-400 text-sm block mb-2">Full Name</label>
               <input
                 name="name"
                 value={form.name}
@@ -71,9 +63,7 @@ const Register = () => {
             </div>
 
             <div>
-              <label className="text-zinc-400 text-sm block mb-2">
-                Password
-              </label>
+              <label className="text-zinc-400 text-sm block mb-2">Password</label>
               <input
                 name="password"
                 type="password"
@@ -86,9 +76,7 @@ const Register = () => {
             </div>
 
             <div>
-              <label className="text-zinc-400 text-sm block mb-2">
-                Account Type
-              </label>
+              <label className="text-zinc-400 text-sm block mb-2">Account Type</label>
               <select
                 name="role"
                 value={form.role}
