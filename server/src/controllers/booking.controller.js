@@ -6,7 +6,7 @@ import { BOOKING_STATUS, SEAT_STATUS } from '../utils/constants.js';
 
 export const createBooking = async (req, res) => {
   const { eventId, seatIds, idempotencyKey } = req.body;
-  const userId = req.user.id;
+  const userId = req.user._id.toString();
 
   if (!eventId || !seatIds || !seatIds.length || !idempotencyKey) {
     throw new AppError('eventId, seatIds, and idempotencyKey are required', 400);
@@ -72,7 +72,7 @@ export const createBooking = async (req, res) => {
 };
 
 export const getBookings = async (req, res) => {
-  const bookings = await Booking.find({ user: req.user.id })
+  const bookings = await Booking.find({ user: req.user._id })
                                 .populate('event', 'title posterUrl date')
                                 .populate('seats', 'seatNumber section')
                                 .sort('-createdAt');
@@ -92,7 +92,7 @@ export const getBookingById = async (req, res) => {
     throw new AppError('Booking not found', 404);
   }
 
-  if (booking.user.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (booking.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
     throw new AppError('Not authorized to access this booking', 403);
   }
 
@@ -110,7 +110,7 @@ export const cancelBooking = async (req, res) => {
     throw new AppError('Booking not found', 404);
   }
 
-  if (booking.user.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (booking.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
     throw new AppError('Not authorized to cancel this booking', 403);
   }
 

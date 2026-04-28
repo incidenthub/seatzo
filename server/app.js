@@ -3,6 +3,9 @@ import cors from 'cors';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 
+// ── Workers ─────────────────────────────────────────────────────────────────
+import './src/workers/seatExpiryWorker.js';
+
 // ── Middleware ──────────────────────────────────────────────────────────────
 import requestId from './src/middleware/requestId.js';
 import errorHandler from './src/middleware/errorHandler.js';
