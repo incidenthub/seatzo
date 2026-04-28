@@ -78,7 +78,7 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
         await api
           .post("/seats/release", {
             eventId,
-            seatIds: selectedSeats.map((s) => s.seatNumber),
+            seatIds: selectedSeats.map((s) => s._id)
           })
           .catch(() => {});
 
@@ -371,13 +371,14 @@ const Checkout = () => {
     createBooking();
   }, []);
 
-  // Countdown timer
+  // Countdown timer + auto-release on expiry
   useEffect(() => {
     if (!creatingBooking) {
       const timer = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
+            releaseAllSeats();
             toast.error("Seat lock expired. Please re-select your seats.");
             navigate(-1);
             return 0;
@@ -389,6 +390,22 @@ const Checkout = () => {
     }
   }, [creatingBooking]);
 
+  // Release all seats when user leaves checkout page
+  useEffect(() => {
+    return () => {
+      releaseAllSeats();
+    };
+  }, []);
+
+  const releaseAllSeats = async () => {
+    if (!eventId) return;
+    try {
+      await api.post("/seats/release-all", { eventId }).catch(() => {});
+    } catch (err) {
+      // Silent fail - seats will auto-release after 5 minutes anyway
+    }
+  };
+
   const createBooking = async () => {
     try {
       const idempotencyKey = uuidv4();
@@ -399,7 +416,13 @@ const Checkout = () => {
       });
       setBooking(res.data.data);
     } catch (err) {
-      toast.error(err.response?.data?.error || "Could not create booking");
+      const errorMsg =
+        typeof err.response?.data?.error === "string"
+          ? err.response?.data?.error
+          : err.response?.data?.error?.message ||
+            err.message ||
+            "Could not create booking";
+      toast.error(errorMsg);
       navigate(-1);
     } finally {
       setCreatingBooking(false);
