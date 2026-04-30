@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../utils/axios';
 import toast from 'react-hot-toast';
 
 const VerifyEmail = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const email = location.state?.email || '';
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

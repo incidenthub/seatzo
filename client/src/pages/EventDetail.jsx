@@ -68,10 +68,10 @@ const EventDetail = () => {
     };
   }, [id]);
 
-  const handleSeatClick = (seat) => {
+   const handleSeatClick = (seat) => {
     if (seat.status !== 'AVAILABLE') return;
-    if (selected.find((s) => s.seatNumber === seat.seatNumber)) {
-      setSelected(selected.filter((s) => s.seatNumber !== seat.seatNumber));
+    if (selected.find((s) => s._id === seat._id)) {
+      setSelected(selected.filter((s) => s._id !== seat._id));
     } else {
       if (selected.length >= 6) { toast.error('Max 6 seats per booking'); return; }
       setSelected([...selected, seat]);
@@ -87,7 +87,7 @@ const EventDetail = () => {
     try {
       await api.post('/seats/lock', {
         eventId: id,
-        seatIds: selected.map((s) => s.seatNumber),
+        seatIds: selected.map((s) => s._id),
       });
 
       toast.success('Seats locked for 5 minutes!');
@@ -230,14 +230,14 @@ const EventDetail = () => {
                         <div className="flex gap-1 flex-wrap">
                           {rowSeats.map((seat) => {
                             const isSelected = selected.find(
-                              (s) => s.seatNumber === seat.seatNumber,
+                              (s) => s._id === seat._id,
                             );
                             const statusKey = isSelected
                               ? "SELECTED"
                               : seat.status;
                             return (
                               <button
-                                key={seat.seatNumber}
+                                key={seat._id}
                                 onClick={() => handleSeatClick(seat)}
                                 title={`${seat.seatNumber} — ${formatPrice(seat.price)}`}
                                 className={`w-8 h-8 rounded text-xs border transition-all ${STATUS_COLORS[statusKey]}`}

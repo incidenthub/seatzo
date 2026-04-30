@@ -1,52 +1,43 @@
 import redis from '../config/redis.js';
 import Seat from '../models/seat.model.js';
 
-// ─── Lock a single seat ───────────────────────────────────────────────────────
-// Atomically claims the Redis key (NX = only if not exists).
-// If Redis succeeds, mirrors the lock into MongoDB.
-// If MongoDB fails, rolls back the Redis key so state stays consistent.
 export const lockSeat = async (eventId, seatId, userId) => {
-  const key = `seat:${eventId}:${seatId}`;
+  // seatId is the MongoDB _id from frontend
+  const seat = await Seat.findById(seatId);
 
-  // Step 1 — atomic Redis claim
-  // NX: only set if key does NOT exist (prevents double-booking)
-  // EX: auto-expire after 300s if user never completes checkout
+  if (!seat || seat.status !== 'AVAILABLE') {
+    return false;
+  }
+
+  // Use seatNumber for Redis key (more human-readable)
+  const key = `seat:${eventId}:${seat.seatNumber}`;
+
   const result = await redis.set(key, userId, {
     NX: true,
     EX: 300,
   });
 
-  // Someone else already holds this seat — return false immediately
   if (result !== 'OK') return false;
 
-  // Step 2 — mirror lock into MongoDB
-  // Required for: seatExpiryWorker queries, seat map UI, booking validation
   try {
-const seat = await Seat.findOneAndUpdate(
-  {
-    event: eventId,
-    seatNumber: seatId,
-    status: 'AVAILABLE'
-  },
-  {
-    status: 'LOCKED',
-    lockedBy: userId,
-    lockExpiresAt: new Date(Date.now() + 300_000),
-  },
-  { new: true }
-);
+    const updated = await Seat.findByIdAndUpdate(
+      seatId,
+      {
+        status: 'LOCKED',
+        lockedBy: userId,
+        lockExpiresAt: new Date(Date.now() + 300_000),
+      },
+      { new: true }
+    );
 
-if (!seat) {
-  await redis.del(key); // rollback Redis
-  return false;
-}
+    if (!updated) {
+      await redis.del(key); // rollback Redis
+      return false;
+    }
 
     return true;
 
   } catch (err) {
-    // MongoDB write failed — release the Redis key so the seat
-    // doesn't get stuck locked in Redis with no MongoDB record.
-    // This is the rollback that keeps both stores consistent.
     await redis.del(key);
     throw err;
   }
@@ -55,29 +46,80 @@ if (!seat) {
 // ─── Release a single seat lock ───────────────────────────────────────────────
 // Clears both Redis key AND resets MongoDB status back to AVAILABLE.
 export const releaseLock = async (eventId, seatId) => {
-  const key = `seat:${eventId}:${seatId}`;
+  // seatId is MongoDB _id
+  const seat = await Seat.findById(seatId);
+
+  if (!seat) return;
+
+  const key = `seat:${eventId}:${seat.seatNumber}`;
 
   // Run both in parallel — no dependency between them
   await Promise.all([
     redis.del(key),
-    Seat.findOneAndUpdate(
-  {
-    event: eventId,
-    seatNumber: seatId
-  },
-  {
-    status: 'AVAILABLE',
-    lockedBy: null,
-    lockExpiresAt: null,
-  }
-),
+    Seat.findByIdAndUpdate(
+      seatId,
+      {
+        status: 'AVAILABLE',
+        lockedBy: null,
+        lockExpiresAt: null,
+      }
+    ),
   ]);
 };
 
-// ─── Lock multiple seats atomically ───────────────────────────────────────────
-// Tries to lock each seat in order.
-// If any seat fails, rolls back ALL previously acquired locks.
-// All-or-nothing: either every seat is locked, or none are.
+// ─── Release lock only if owned by user ────────────────────────────────────
+export const releaseLockIfOwner = async (eventId, seatId, userId) => {
+  const seat = await Seat.findById(seatId);
+
+  if (!seat) return false;
+
+  const key = `seat:${eventId}:${seat.seatNumber}`;
+  const lockOwner = await redis.get(key);
+
+  // Verify ownership
+  if (lockOwner !== userId) {
+    return false;
+  }
+
+  await Promise.all([
+    redis.del(key),
+    Seat.findByIdAndUpdate(
+      seatId,
+      {
+        status: 'AVAILABLE',
+        lockedBy: null,
+        lockExpiresAt: null,
+      }
+    ),
+  ]);
+
+  return true;
+};
+
+// ─── Mark seats as BOOKED ──────────────────────────────────────────────────
+export const markSeatsAsBooked = async (eventId, seatIds, bookingId) => {
+  await Seat.updateMany(
+    {
+      event: eventId,
+      _id: { $in: seatIds },
+      status: 'LOCKED'
+    },
+    {
+      status: 'BOOKED',
+      booking: bookingId,
+      lockedBy: null,
+      lockExpiresAt: null
+    }
+  );
+
+  // Also clear from Redis — need to get seatNumbers to form the Redis keys
+  const seatsToRelease = await Seat.find({ _id: { $in: seatIds } }).select('seatNumber');
+  const keys = seatsToRelease.map(s => `seat:${eventId}:${s.seatNumber}`);
+  if (keys.length > 0) {
+    await redis.del(...keys);
+  }
+};
+
 export const lockMultipleSeats = async (eventId, seatIds, userId) => {
   const newlyLocked = [];
 
@@ -117,7 +159,7 @@ export const releaseAllUserLocks = async (eventId, userId) => {
     event:     eventId,
     lockedBy:  userId,
     status:    'LOCKED',
-  }).select('_id');
+  });
 
   if (lockedSeats.length === 0) return { released: 0 };
 
