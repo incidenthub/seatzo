@@ -36,11 +36,14 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
   const [loading, setLoading] = useState(false);
   const [cardError, setCardError] = useState("");
 
-  const formatPrice = (paise) => `₹${(paise / 100).toLocaleString("en-IN")}`;
+  // Prices are stored in paise in the DB — divide by 100 for display
+  const formatPrice = (paise) => `₹${(Number(paise) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const seatTotal = pricing ? pricing.price * selectedSeats.length : 0;
   const fees = Math.round(seatTotal * 0.12);
   const grandTotal = seatTotal + fees;
+  // Stripe requires the smallest currency unit (already in paise)
+  const grandTotalInPaise = Math.round(grandTotal);
 
   const handlePay = async (e) => {
     e.preventDefault();
@@ -55,7 +58,7 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
       const { data } = await api.post("/payments/create", {
         bookingId: booking._id,
         idempotencyKey,
-        amount: grandTotal,
+        amount: grandTotalInPaise, // Stripe requires paise (₹1 = 100 paise)
       });
 
       const { clientSecret } = data.data;
@@ -87,9 +90,22 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
       }
 
       if (paymentIntent.status === "succeeded") {
-        toast.success("Payment successful!");
+        // Step 3 — confirm booking on backend (verifies with Stripe, marks CONFIRMED)
+        // This is necessary because Stripe webhooks don't reach localhost in dev.
+        const confirmRes = await api.post(`/bookings/${booking._id}/confirm`, {
+          paymentIntentId: paymentIntent.id,
+        });
+
+        const confirmedBooking = confirmRes.data.data;
+
+        if (confirmedBooking.status !== "CONFIRMED") {
+          throw new Error("Booking confirmation failed — please contact support.");
+        }
+
+        toast.success("Payment successful! Booking confirmed 🎉");
         navigate("/booking-confirmation", {
-          state: { booking, event },
+          state: { booking: confirmedBooking, event },
+          replace: true,
         });
       }
     } catch (err) {
@@ -181,7 +197,7 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
                 {seat.seatNumber} — {seat.section}
               </span>
               <span style={{ color: "#71717a" }}>
-                {formatPrice(pricing?.price || seat.price)}
+                {formatPrice(pricing?.price ?? seat.price)}
               </span>
             </div>
           ))}
@@ -357,7 +373,7 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
 const Checkout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { eventId, event, selectedSeats, pricing } = location.state || {};
+  const { eventId, event, selectedSeats, pricing, idempotencyKey: stateIdempotencyKey } = location.state || {};
 
   const [booking, setBooking] = useState(null);
   const [creatingBooking, setCreatingBooking] = useState(true);
@@ -391,11 +407,11 @@ const Checkout = () => {
 
   const createBooking = async () => {
     try {
-      const idempotencyKey = uuidv4();
+      const finalIdempotencyKey = stateIdempotencyKey || uuidv4();
       const res = await api.post("/bookings", {
         eventId,
         seatIds: selectedSeats.map((s) => s._id),
-        idempotencyKey,
+        idempotencyKey: finalIdempotencyKey,
       });
       setBooking(res.data.data);
     } catch (err) {

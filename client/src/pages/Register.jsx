@@ -22,7 +22,7 @@ const Register = () => {
     setLoading(true);
     try {
       await register(form.name, form.email, form.password, form.role);
-      toast.success("Account created! Check your email for the OTP.");
+      toast.success("Account pending. Check your email for the OTP.");
       navigate("/verify-email", { state: { email: form.email } });
     } catch (err) {
       toast.error(err.response?.data?.error || "Registration failed");

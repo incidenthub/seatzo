@@ -1,8 +1,11 @@
 import Booking from '../models/booking.model.js';
 import Seat from '../models/seat.model.js';
 import Event from '../models/event.model.js';
+import Payment from '../models/payment.model.js';
+import stripe from '../config/stripe.js';
 import AppError from '../utils/appError.js';
-import { BOOKING_STATUS, SEAT_STATUS } from '../utils/constants.js';
+import { BOOKING_STATUS, SEAT_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
+import { paymentQueue } from '../queues/paymentEventsQueue.js';
 
 export const createBooking = async (req, res) => {
   const { eventId, seatIds, idempotencyKey } = req.body;
@@ -34,8 +37,24 @@ export const createBooking = async (req, res) => {
   if (seats.length !== seatIds.length) {
     throw new AppError('One or more invalid seats selected', 400);
   }
-
+  
   let totalAmount = 0;
+  
+  // 2.5 Check if any of these seats already have a PENDING booking
+  // This prevents double entries if idempotency fails or multiple tabs are open
+  const existingPending = await Booking.findOne({
+    seats: { $in: seatIds },
+    status: BOOKING_STATUS.PENDING,
+    user: userId // Only catch if it's the same user to avoid blocking others if locks are weird
+  });
+
+  if (existingPending) {
+    return res.status(200).json({
+      success: true,
+      data: existingPending
+    });
+  }
+
   for (const seat of seats) {
     if (seat.status !== SEAT_STATUS.LOCKED || seat.lockedBy.toString() !== userId) {
       throw new AppError(`Seat ${seat.seatNumber} is not currently locked by you`, 403);
@@ -128,4 +147,96 @@ export const cancelBooking = async (req, res) => {
     success: true,
     message: 'Booking cancelled'
   });
+};
+
+// ─── Confirm Booking ──────────────────────────────────────────────────────────
+// POST /api/bookings/:id/confirm
+// Verifies payment with Stripe directly (no webhook required) then transitions
+// Booking → CONFIRMED, Seats → BOOKED, Event.availableSeats decremented.
+export const confirmBooking = async (req, res) => {
+  const { paymentIntentId } = req.body;
+
+  if (!paymentIntentId) {
+    throw new AppError('paymentIntentId is required', 400);
+  }
+
+  // 1. Load booking and verify ownership
+  const booking = await Booking.findById(req.params.id).populate("seats");
+  if (!booking) throw new AppError('Booking not found', 404);
+
+  if (booking.user.toString() !== req.user.id) {
+    throw new AppError('Not authorized', 403);
+  }
+
+  // 2. Idempotency — already confirmed, just return it
+  if (booking.status === BOOKING_STATUS.CONFIRMED) {
+    return res.status(200).json({ success: true, data: booking });
+  }
+
+  if (booking.status !== BOOKING_STATUS.PENDING) {
+    throw new AppError(`Cannot confirm a booking in ${booking.status} status`, 400);
+  }
+
+  // 3. Verify the payment actually succeeded with Stripe (source of truth)
+  let intent;
+  try {
+    intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  } catch (err) {
+    throw new AppError(`Stripe verification failed: ${err.message}`, 502);
+  }
+
+  if (intent.status !== 'succeeded') {
+    throw new AppError(`Payment not completed. Stripe status: ${intent.status}`, 402);
+  }
+
+  // 4. Mark the linked Payment record as SUCCESS
+  const payment = await Payment.findOneAndUpdate(
+    { stripePaymentIntentId: paymentIntentId },
+    { status: PAYMENT_STATUS.SUCCESS },
+    { new: true }
+  );
+
+  if (payment) {
+    // 4.1. Link payment to booking
+    booking.paymentId = payment._id;
+  }
+
+  // 5. Confirm the booking
+  booking.status = BOOKING_STATUS.CONFIRMED;
+  booking.confirmedAt = new Date();
+  await booking.save();
+
+  // 6. Mark all seats as BOOKED
+  await Seat.updateMany(
+    { _id: { $in: booking.seats } },
+    { $set: { status: SEAT_STATUS.BOOKED } },
+  );
+
+  // 7. Decrement availableSeats on the Event
+  await Event.findByIdAndUpdate(booking.event, {
+    $inc: { availableSeats: -booking.seats.length },
+  });
+
+  // 8. Trigger background side-effects (Email, etc.)
+  if (payment) {
+    await paymentQueue.add('PAYMENT_SUCCESS', {
+      paymentId: payment._id,
+      paymentIntentId: payment.stripePaymentIntentId,
+      bookingId: booking._id,
+      eventId: booking.event
+    }, {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000,
+      },
+      removeOnComplete: true,
+      removeOnFail: false
+    });
+    console.log(`[ConfirmBooking] Triggered async worker for Booking ${booking._id}`);
+  } else {
+    console.warn(`[ConfirmBooking] Payment record not found for intent ${paymentIntentId}. Email skipped.`);
+  }
+
+  res.status(200).json({ success: true, data: booking });
 };

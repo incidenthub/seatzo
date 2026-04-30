@@ -43,7 +43,7 @@ const UserDashboard = () => {
     }
   };
 
-  const formatPrice = (paise) => `₹${(paise / 100).toLocaleString("en-IN")}`;
+  const formatPrice = (paise) => `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatDate = (date) =>
     new Date(date).toLocaleDateString("en-IN", {
       day: "numeric",

@@ -2,9 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/axios';
 import { useAuth } from '../context/AuthContext';
+import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 
 const SECTION_COLORS = {
+  DIAMOND: 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300',
+  PLATINUM: 'bg-slate-300/20 border-slate-300/50 text-slate-100',
+  VIP: 'bg-purple-500/20 border-purple-500/50 text-purple-300',
   PREMIUM: 'bg-amber-500/20 border-amber-500/50 text-amber-300',
   GOLD: 'bg-yellow-500/20 border-yellow-500/50 text-yellow-300',
   SILVER: 'bg-zinc-500/20 border-zinc-400/50 text-zinc-300',
@@ -78,6 +82,7 @@ const EventDetail = () => {
     if (!user) { toast.error('Please login first'); navigate('/login'); return; }
     if (selected.length === 0) { toast.error('Select at least one seat'); return; }
 
+    const idempotencyKey = uuidv4();
     setLocking(true);
     try {
       await api.post('/seats/lock', {
@@ -103,6 +108,7 @@ const EventDetail = () => {
           event,
           selectedSeats: selected,
           pricing,
+          idempotencyKey
         },
       });
     } catch (err) {
@@ -124,6 +130,16 @@ const EventDetail = () => {
     acc[key][seat.row].push(seat);
     return acc;
   }, {});
+
+  const SECTION_ORDER = ['DIAMOND', 'PLATINUM', 'VIP', 'PREMIUM', 'GOLD', 'SILVER', 'GENERAL'];
+  const sortedSections = Object.keys(grouped).sort((a, b) => {
+    const idxA = SECTION_ORDER.indexOf(a);
+    const idxB = SECTION_ORDER.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
+  });
 
   if (loading) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
@@ -185,39 +201,59 @@ const EventDetail = () => {
           Stage / Screen
         </div>
 
-        {/* Seat map */}
         <div className="space-y-8">
-          {Object.entries(grouped).map(([section, rows]) => (
-            <div key={section}>
-              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg border text-xs font-medium mb-4 ${SECTION_COLORS[section] || 'bg-zinc-800 border-zinc-700 text-zinc-300'}`}>
-                {section}
-              </div>
+          {sortedSections.map((section) => {
+            const rows = grouped[section];
+            const sortedRows = Object.keys(rows).sort();
 
-              <div className="space-y-2">
-                {Object.entries(rows).map(([row, rowSeats]) => (
-                  <div key={row} className="flex items-center gap-2">
-                    <span className="text-zinc-600 text-xs w-5 text-right">{row}</span>
-                    <div className="flex gap-1 flex-wrap">
-                      {rowSeats.map((seat) => {
-                        const isSelected = selected.find((s) => s.seatNumber === seat.seatNumber);
-                        const statusKey = isSelected ? 'SELECTED' : seat.status;
-                        return (
-                          <button
-                            key={seat.seatNumber}
-                            onClick={() => handleSeatClick(seat)}
-                            title={`${seat.seatNumber} — ${formatPrice(seat.price)}`}
-                            className={`w-8 h-8 rounded text-xs border transition-all ${STATUS_COLORS[statusKey]}`}
-                          >
-                            {seat.seatNumber.replace(row, '')}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+            return (
+              <div key={section}>
+                <div
+                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg border text-xs font-medium mb-4 ${SECTION_COLORS[section] || "bg-zinc-800 border-zinc-700 text-zinc-300"}`}
+                >
+                  {section}
+                </div>
+
+                <div className="space-y-2">
+                  {sortedRows.map((row) => {
+                    const rowSeats = rows[row].sort((a, b) => {
+                      const numA = parseInt(a.seatNumber.match(/\d+/) || 0, 10);
+                      const numB = parseInt(b.seatNumber.match(/\d+/) || 0, 10);
+                      return numA - numB;
+                    });
+
+                    return (
+                      <div key={row} className="flex items-center gap-2">
+                        <span className="text-zinc-600 text-xs w-5 text-right">
+                          {row}
+                        </span>
+                        <div className="flex gap-1 flex-wrap">
+                          {rowSeats.map((seat) => {
+                            const isSelected = selected.find(
+                              (s) => s.seatNumber === seat.seatNumber,
+                            );
+                            const statusKey = isSelected
+                              ? "SELECTED"
+                              : seat.status;
+                            return (
+                              <button
+                                key={seat.seatNumber}
+                                onClick={() => handleSeatClick(seat)}
+                                title={`${seat.seatNumber} — ${formatPrice(seat.price)}`}
+                                className={`w-8 h-8 rounded text-xs border transition-all ${STATUS_COLORS[statusKey]}`}
+                              >
+                                {seat.seatNumber.match(/\d+/)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Booking bar */}

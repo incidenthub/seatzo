@@ -103,7 +103,21 @@ const EventListings = () => {
                 {/* Poster placeholder */}
                 <div className="h-44 bg-gradient-to-br from-violet-900/40 to-zinc-800 flex items-center justify-center">
                   {event.posterUrl ? (
-                    <img src={event.posterUrl} alt={event.title} className="w-full h-full object-cover" />
+                    <img 
+                      src={event.posterUrl} 
+                      alt={event.title} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        const parent = e.target.parentElement;
+                        if (parent) {
+                          const span = document.createElement('span');
+                          span.className = 'text-4xl';
+                          span.innerText = '🎟️';
+                          parent.appendChild(span);
+                        }
+                      }}
+                    />
                   ) : (
                     <span className="text-4xl">🎟️</span>
                   )}

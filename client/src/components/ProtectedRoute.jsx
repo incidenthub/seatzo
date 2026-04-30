@@ -1,19 +1,55 @@
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from "../context/AuthContext";
+import { Navigate, Outlet } from "react-router-dom";
 
-const ProtectedRoute = ({ children, roles }) => {
+const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-      <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  // Fallback to localStorage to handle the race condition where
+  // setUser hasn't re-rendered yet right after login + navigate
+  const resolvedUser =
+    user ||
+    (() => {
+      try {
+        const stored = localStorage.getItem("user");
+        return stored ? JSON.parse(stored) : null;
+      } catch {
+        return null;
+      }
+    })();
 
-  if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#09090b",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            border: "2px solid #7c3aed",
+            borderTopColor: "transparent",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
-  return children;
+  if (!resolvedUser) return <Navigate to="/login" replace />;
+
+  if (allowedRoles && !allowedRoles.includes(resolvedUser.role)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children ? children : <Outlet />;
 };
 
 export default ProtectedRoute;

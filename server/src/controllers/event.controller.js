@@ -1,8 +1,19 @@
-import Event from '../models/event.model.js';
-import Seat from '../models/seat.model.js';
-import Booking from '../models/booking.model.js';
-import generateSeats from '../utils/generateSeats.js';
-import { EVENT_STATUS, SEAT_STATUS } from '../utils/constants.js';
+import Event from "../models/event.model.js";
+import Seat from "../models/seat.model.js";
+import Booking from "../models/booking.model.js";
+import generateSeats from "../utils/generateSeats.js";
+import { EVENT_STATUS, SEAT_STATUS } from "../utils/constants.js";
+
+export const getMyEvents = async (req, res) => {
+  try {
+    const events = await Event.find({ organiser: req.user._id })
+      .populate("organiser", "name email")
+      .sort("-createdAt");
+    res.json({ events });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 // ─── Create Event ─────────────────────────────────────────────────────────────
 // POST /api/events  (organiser, admin)
@@ -12,20 +23,30 @@ import { EVENT_STATUS, SEAT_STATUS } from '../utils/constants.js';
 export const createEvent = async (req, res) => {
   try {
     const {
-      title, description, venue, city, category,
-      date, basePrice, pricingRules, posterUrl, tags,
+      title,
+      description,
+      venue,
+      city,
+      category,
+      date,
+      basePrice,
+      pricingRules,
+      posterUrl,
+      tags,
       sections,
     } = req.body;
 
     if (!sections || !sections.length) {
-      return res.status(400).json({ error: 'At least one section with seats is required' });
+      return res
+        .status(400)
+        .json({ error: "At least one section with seats is required" });
     }
 
     // Validate each section has the required shape
     for (const s of sections) {
       if (!s.name || !s.rows?.length || !s.seatsPerRow || !s.price) {
         return res.status(400).json({
-          error: 'Each section must have name, rows, seatsPerRow, and price',
+          error: "Each section must have name, rows, seatsPerRow, and price",
         });
       }
     }
@@ -33,7 +54,7 @@ export const createEvent = async (req, res) => {
     // Derive seat count from sections — never trust a client-supplied number
     const totalSeats = sections.reduce(
       (sum, s) => sum + s.rows.length * s.seatsPerRow,
-      0
+      0,
     );
 
     const event = await Event.create({
@@ -57,7 +78,7 @@ export const createEvent = async (req, res) => {
     await generateSeats(event._id, sections);
 
     res.status(201).json({
-      message: 'Event created successfully',
+      message: "Event created successfully",
       event,
     });
   } catch (err) {
@@ -72,9 +93,14 @@ export const createEvent = async (req, res) => {
 export const getEvents = async (req, res) => {
   try {
     const {
-      city, category, date,
-      minPrice, maxPrice,
-      sort, page = 1, limit = 20,
+      city,
+      category,
+      date,
+      minPrice,
+      maxPrice,
+      sort,
+      page = 1,
+      limit = 20,
     } = req.query;
 
     // Only return published events to the public
@@ -99,7 +125,7 @@ export const getEvents = async (req, res) => {
     const sortOptions = {
       date: { date: 1 },
       price: { basePrice: 1 },
-      popularity: { availableSeats: 1 },  // fewest seats left = most popular
+      popularity: { availableSeats: 1 }, // fewest seats left = most popular
     };
     const sortQuery = sortOptions[sort] || { date: 1 };
 
@@ -112,7 +138,7 @@ export const getEvents = async (req, res) => {
         .sort(sortQuery)
         .skip(skip)
         .limit(limitNum)
-        .populate('organiser', 'name email'),
+        .populate("organiser", "name email"),
       Event.countDocuments(filter),
     ]);
 
@@ -135,11 +161,13 @@ export const getEvents = async (req, res) => {
 
 export const getEvent = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id)
-      .populate('organiser', 'name email');
+    const event = await Event.findById(req.params.id).populate(
+      "organiser",
+      "name email",
+    );
 
     if (!event) {
-      return res.status(404).json({ error: 'Event not found' });
+      return res.status(404).json({ error: "Event not found" });
     }
 
     res.json({ event });
@@ -155,10 +183,12 @@ export const getEvent = async (req, res) => {
 export const updateEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!event) return res.status(404).json({ error: "Event not found" });
 
     if (event.organiser.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Forbidden — you do not own this event' });
+      return res
+        .status(403)
+        .json({ error: "Forbidden — you do not own this event" });
     }
 
     if (event.status !== EVENT_STATUS.DRAFT) {
@@ -168,15 +198,21 @@ export const updateEvent = async (req, res) => {
     }
 
     // Strip fields that must never be updated after creation
-    const { sections, totalSeats, availableSeats, organiser, status, ...safeFields } = req.body;
+    const {
+      sections,
+      totalSeats,
+      availableSeats,
+      organiser,
+      status,
+      ...safeFields
+    } = req.body;
 
-    const updated = await Event.findByIdAndUpdate(
-      req.params.id,
-      safeFields,
-      { new: true, runValidators: true }
-    );
+    const updated = await Event.findByIdAndUpdate(req.params.id, safeFields, {
+      new: true,
+      runValidators: true,
+    });
 
-    res.json({ message: 'Event updated', event: updated });
+    res.json({ message: "Event updated", event: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -188,10 +224,12 @@ export const updateEvent = async (req, res) => {
 export const publishEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!event) return res.status(404).json({ error: "Event not found" });
 
     if (event.organiser.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Forbidden — you do not own this event' });
+      return res
+        .status(403)
+        .json({ error: "Forbidden — you do not own this event" });
     }
 
     if (event.status !== EVENT_STATUS.DRAFT) {
@@ -203,7 +241,7 @@ export const publishEvent = async (req, res) => {
     event.status = EVENT_STATUS.PUBLISHED;
     await event.save();
 
-    res.json({ message: 'Event published successfully', event });
+    res.json({ message: "Event published successfully", event });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -216,14 +254,16 @@ export const publishEvent = async (req, res) => {
 export const cancelEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!event) return res.status(404).json({ error: "Event not found" });
 
     if (event.organiser.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Forbidden — you do not own this event' });
+      return res
+        .status(403)
+        .json({ error: "Forbidden — you do not own this event" });
     }
 
     if (event.status === EVENT_STATUS.CANCELLED) {
-      return res.status(400).json({ error: 'Event is already cancelled' });
+      return res.status(400).json({ error: "Event is already cancelled" });
     }
 
     event.status = EVENT_STATUS.CANCELLED;
@@ -233,10 +273,10 @@ export const cancelEvent = async (req, res) => {
     // so Person B cannot acquire new locks on this event
     await Seat.updateMany(
       { event: event._id, status: SEAT_STATUS.AVAILABLE },
-      { $set: { status: SEAT_STATUS.DISABLED } }
+      { $set: { status: SEAT_STATUS.DISABLED } },
     );
 
-    res.json({ message: 'Event cancelled' });
+    res.json({ message: "Event cancelled" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -249,20 +289,22 @@ export const cancelEvent = async (req, res) => {
 export const getAnalytics = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!event) return res.status(404).json({ error: "Event not found" });
 
     if (event.organiser.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Forbidden — you do not own this event' });
+      return res
+        .status(403)
+        .json({ error: "Forbidden — you do not own this event" });
     }
 
     const [revenueResult, bookingsByDate, seatBreakdown] = await Promise.all([
       // Total revenue + confirmed booking count
       Booking.aggregate([
-        { $match: { event: event._id, status: 'CONFIRMED' } },
+        { $match: { event: event._id, status: "CONFIRMED" } },
         {
           $group: {
             _id: null,
-            totalRevenue: { $sum: '$totalAmount' },
+            totalRevenue: { $sum: "$totalAmount" },
             totalBookings: { $sum: 1 },
           },
         },
@@ -270,10 +312,12 @@ export const getAnalytics = async (req, res) => {
 
       // Bookings per day — for a chart on Person C's organiser dashboard
       Booking.aggregate([
-        { $match: { event: event._id, status: 'CONFIRMED' } },
+        { $match: { event: event._id, status: "CONFIRMED" } },
         {
           $group: {
-            _id: { $dateToString: { format: '%Y-%m-%d', date: '$confirmedAt' } },
+            _id: {
+              $dateToString: { format: "%Y-%m-%d", date: "$confirmedAt" },
+            },
             count: { $sum: 1 },
           },
         },
@@ -283,16 +327,17 @@ export const getAnalytics = async (req, res) => {
       // Seat status breakdown — AVAILABLE / LOCKED / BOOKED / DISABLED
       Seat.aggregate([
         { $match: { event: event._id } },
-        { $group: { _id: '$status', count: { $sum: 1 } } },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
       ]),
     ]);
 
     const totalRevenue = revenueResult[0]?.totalRevenue ?? 0;
     const totalBookings = revenueResult[0]?.totalBookings ?? 0;
     const soldSeats = event.totalSeats - event.availableSeats;
-    const occupancyRate = event.totalSeats > 0
-      ? `${((soldSeats / event.totalSeats) * 100).toFixed(1)}%`
-      : '0%';
+    const occupancyRate =
+      event.totalSeats > 0
+        ? `${((soldSeats / event.totalSeats) * 100).toFixed(1)}%`
+        : "0%";
 
     res.json({
       totalRevenue,
