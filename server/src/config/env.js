@@ -39,6 +39,13 @@ function loadAndValidateEnv() {
       publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || DEFAULTS.STRIPE_PUBLISHABLE_KEY,
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     },
+    email: {
+      smtpHost: process.env.SMTP_HOST,
+      smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
+      smtpUser: process.env.SMTP_USER,
+      smtpPass: process.env.SMTP_PASS,
+      fromEmail: process.env.EMAIL_FROM || process.env.FROM_EMAIL,
+    },
   });
 
   return config;

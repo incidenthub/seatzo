@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
-import { sendOTPEmail, sendPasswordResetEmail } from '../config/email.js';
-
+import PendingUser from '../models/pendingUser.model.js';
+import { sendOTPEmail } from '../config/email.js';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const generateOTP = () => crypto.randomInt(100000, 999999).toString();
@@ -50,24 +50,23 @@ export const register = async (req, res) => {
 
     // Prevent self-assigning admin
     const assignedRole = role === 'admin' ? 'customer' : (role || 'customer');
-
     const otp = generateOTP();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
-    const user = await User.create({
+    // Overwrite any existing pending registration for this email
+    await PendingUser.deleteMany({ email });
+
+    await PendingUser.create({
       name,
       email,
-      password, // hashed by pre-save hook
+      password,
       role: assignedRole,
       otp,
-      otpExpiresAt,
     });
 
     await sendOTPEmail(email, name, otp);
 
     res.status(201).json({
-      message: 'Account created. Check your email for the OTP.',
-      userId: user._id,
+      message: 'Account pending. Check your email for the OTP to complete registration.',
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -85,29 +84,34 @@ export const verifyEmail = async (req, res) => {
       return res.status(400).json({ error: 'Email and OTP are required' });
     }
 
-    const user = await User.findOne({ email }).select('+otp +otpExpiresAt');
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    // Also check if they are already fully verified
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered and verified' });
     }
 
-    if (user.isVerified) {
-      return res.status(400).json({ error: 'Email already verified' });
+    const pendingUser = await PendingUser.findOne({ email });
+    if (!pendingUser) {
+      return res.status(404).json({ error: 'Registration session expired or invalid. Please register again.' });
     }
 
-    if (!user.otp || user.otp !== otp) {
+    if (pendingUser.otp !== otp) {
       return res.status(400).json({ error: 'Invalid OTP' });
     }
 
-    if (user.otpExpiresAt < new Date()) {
-      return res.status(400).json({ error: 'OTP has expired' });
-    }
+    // OTP matches, create the actual user
+    const user = await User.create({
+      name: pendingUser.name,
+      email: pendingUser.email,
+      password: pendingUser.password, // Pre-save hook will hash it now
+      role: pendingUser.role,
+      isVerified: true,
+    });
 
-    user.isVerified = true;
-    user.otp = undefined;
-    user.otpExpiresAt = undefined;
-    await user.save();
+    // Clean up pending user
+    await PendingUser.deleteMany({ email });
 
-    res.json({ message: 'Email verified successfully' });
+    res.json({ message: 'Email verified successfully. Account created!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -134,11 +138,8 @@ export const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    if (!user.isVerified) {
-      return res.status(403).json({
-        error: 'Email not verified. Check your inbox for the OTP.',
-      });
-    }
+    // Email verification check removed as requested
+
 
     const accessToken = signAccessToken(user._id);
     const refreshToken = signRefreshToken(user._id);
@@ -227,7 +228,9 @@ export const forgotPassword = async (req, res) => {
     user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    await sendPasswordResetEmail(email, user.name, otp);
+    // Email sending removed as requested
+    console.log(`[Forgot Password] OTP for ${email}: ${otp}`);
+
 
     res.json(genericResponse);
   } catch (err) {
@@ -288,29 +291,30 @@ export const resendOTP = async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (user.isVerified) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({ error: 'Email already verified' });
     }
 
-    // Throttle: don't resend if current OTP still has more than 8 min left
-    const timeLeft = user.otpExpiresAt - Date.now();
-    if (timeLeft > 8 * 60 * 1000) {
+    const pendingUser = await PendingUser.findOne({ email });
+    if (!pendingUser) {
+      return res.status(404).json({ error: 'No pending registration found. Please register again.' });
+    }
+
+    // Throttle check
+    const timeLeft = pendingUser.createdAt.getTime() + 15 * 60 * 1000 - Date.now();
+    // Only allow resend if it's been at least 2 minutes
+    if (timeLeft > 13 * 60 * 1000) {
       return res.status(429).json({
         error: 'OTP recently sent. Please wait before requesting another.',
       });
     }
 
     const otp = generateOTP();
-    user.otp = otp;
-    user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    await user.save();
+    pendingUser.otp = otp;
+    await pendingUser.save();
 
-    await sendOTPEmail(email, user.name, otp);
+    await sendOTPEmail(email, pendingUser.name, otp);
 
     res.json({ message: 'New OTP sent to your email.' });
   } catch (err) {

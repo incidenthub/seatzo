@@ -1,32 +1,44 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import toast from "react-hot-toast";
 
 const Login = () => {
   const { login, user } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      navigate('/');
+      if (user.role === "organiser") {
+        navigate("/organiser/events");
+      } else if (user.role === "admin") {
+        navigate("/admin/events");
+      } else {
+        navigate("/");
+      }
     }
   }, [user, navigate]);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       const user = await login(form.email, form.password);
+      console.log("returned user:", user);
       toast.success(`Welcome back, ${user.name}!`);
-      navigate('/');
+      if (user.role === "organiser") {
+        navigate("/organiser/events");
+      } else {
+        navigate("/");
+      }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Login failed');
+      toast.error(err.response?.data?.error || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -58,7 +70,9 @@ const Login = () => {
             </div>
 
             <div>
-              <label className="text-zinc-400 text-sm block mb-2">Password</label>
+              <label className="text-zinc-400 text-sm block mb-2">
+                Password
+              </label>
               <input
                 name="password"
                 type="password"
@@ -75,13 +89,16 @@ const Login = () => {
               disabled={loading}
               className="w-full bg-violet-600 hover:bg-violet-500 disabled:bg-violet-800 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors text-sm"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
           <p className="text-zinc-500 text-sm text-center mt-6">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-violet-400 hover:text-violet-300">
+            Don't have an account?{" "}
+            <Link
+              to="/register"
+              className="text-violet-400 hover:text-violet-300"
+            >
               Sign up
             </Link>
           </p>

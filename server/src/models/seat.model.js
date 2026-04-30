@@ -67,8 +67,8 @@ const seatSchema = new mongoose.Schema({
 
 // ─── Indexes ───────────────────────────────────────────────────────────────
 
-// No two seats can share the same number in the same event
-seatSchema.index({ event: 1, seatNumber: 1 }, { unique: true });
+// No two seats can share the same number in the same section of the same event
+seatSchema.index({ event: 1, section: 1, seatNumber: 1 }, { unique: true });
 
 // Person B queries this on every seat map load — most critical index
 seatSchema.index({ event: 1, status: 1 });

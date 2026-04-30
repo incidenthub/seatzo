@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./context/AuthContext";
 
@@ -16,6 +16,13 @@ import Checkout from "./pages/Checkout";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import UserDashboard from "./pages/UserDashboard";
 
+// Organiser
+import OrganiserLayout from "./pages/organiser/OrganiserLayout";
+import MyEvents from "./pages/organiser/MyEvents";
+import CreateEvent from "./pages/organiser/CreateEvent";
+import EditEvent from "./pages/organiser/EditEvent";
+import EventAnalytics from "./pages/organiser/EventAnalytics";
+
 const App = () => {
   return (
     <BrowserRouter>
@@ -31,50 +38,70 @@ const App = () => {
           }}
         />
         <Routes>
-          {/* Auth pages — no navbar, no footer */}
+          {/* ── Auth pages — no navbar, no footer ── */}
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/login" element={<Login />} />
 
-          {/* App pages — with navbar and footer */}
+          {/* ── Organiser pages — own layout (sidebar), no Navbar/Footer ── */}
           <Route
-            path="/*"
+            element={<ProtectedRoute allowedRoles={["organiser", "admin"]} />}
+          >
+            <Route element={<OrganiserLayout />}>
+              <Route path="/organiser/events" element={<MyEvents />} />
+              <Route
+                path="/organiser/events/create"
+                element={<CreateEvent />}
+              />
+              <Route
+                path="/organiser/events/:id/edit"
+                element={<EditEvent />}
+              />
+              <Route
+                path="/organiser/events/:id/analytics"
+                element={<EventAnalytics />}
+              />
+            </Route>
+          </Route>
+
+          {/* ── App pages — with Navbar and Footer ── */}
+          <Route
             element={
               <>
                 <Navbar />
-                <Routes>
-                  <Route path="/" element={<LandingPage />} />
-                  <Route path="/events" element={<EventListings />} />
-                  <Route path="/events/:id" element={<EventDetail />} />
-                  <Route
-                    path="/checkout"
-                    element={
-                      <ProtectedRoute>
-                        <Checkout />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/booking-confirmation"
-                    element={
-                      <ProtectedRoute>
-                        <BookingConfirmation />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <UserDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
+                <Outlet />
                 <Footer />
               </>
             }
-          />
+          >
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/events" element={<EventListings />} />
+            <Route path="/events/:id" element={<EventDetail />} />
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/booking-confirmation"
+              element={
+                <ProtectedRoute>
+                  <BookingConfirmation />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <UserDashboard />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
         </Routes>
       </AuthProvider>
     </BrowserRouter>

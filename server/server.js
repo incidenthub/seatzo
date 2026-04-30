@@ -6,6 +6,9 @@ const { default: app } = await import('./app.js');
 const { default: connectDB } = await import('./src/config/db.js');
 const { default: User } = await import('./src/models/user.model.js');
 
+// Ensure background workers are initialized
+await import('./src/queues/paymentEventsQueue.js');
+
 const ensureDefaultUser = async ({ email, name, password, role, logLabel }) => {
   if (env.nodeEnv === 'production') {
     return;

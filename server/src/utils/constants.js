@@ -24,6 +24,9 @@ export const SEAT_STATUS = Object.freeze({
 });
 
 export const SEAT_SECTION = Object.freeze({
+  DIAMOND: 'DIAMOND',
+  PLATINUM: 'PLATINUM',
+  VIP: 'VIP',
   PREMIUM: 'PREMIUM',
   GOLD: 'GOLD',
   SILVER: 'SILVER',
@@ -39,10 +42,15 @@ export const EVENT_STATUS = Object.freeze({
 
 export const EVENT_CATEGORY = Object.freeze({
   MOVIE: 'movie',
+  MUSIC: 'music',
   CONCERT: 'concert',
   SPORTS: 'sports',
   THEATRE: 'theatre',
   STANDUP: 'standup',
+  COMEDY: 'comedy',
+  CONFERENCE: 'conference',
+  FESTIVAL: 'festival',
+  OTHER: 'other',
 });
 
 export const SUPPORTED_CURRENCIES = Object.freeze(['inr', 'usd']);
