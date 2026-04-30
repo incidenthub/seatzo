@@ -12,7 +12,13 @@ const Login = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      navigate("/");
+      if (user.role === "organiser") {
+        navigate("/organiser/events");
+      } else if (user.role === "admin") {
+        navigate("/admin/events");
+      } else {
+        navigate("/");
+      }
     }
   }, [user, navigate]);
 

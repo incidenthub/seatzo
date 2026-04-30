@@ -20,15 +20,24 @@ const Navbar = () => {
         </Link>
 
         <div className="flex items-center gap-6">
-          <Link to="/events" className="text-zinc-400 hover:text-white text-sm transition-colors">
-            Events
-          </Link>
+          {(!user || user.role !== 'organiser') && (
+            <Link to="/events" className="text-zinc-400 hover:text-white text-sm transition-colors">
+              Events
+            </Link>
+          )}
 
           {user ? (
             <>
-              <Link to="/dashboard" className="text-zinc-400 hover:text-white text-sm transition-colors">
-                My Bookings
-              </Link>
+              {user.role === 'organiser' && (
+                <Link to="/organiser/events" className="text-zinc-400 hover:text-white text-sm transition-colors">
+                  Organiser Dashboard
+                </Link>
+              )}
+              {user.role === 'customer' && (
+                <Link to="/dashboard" className="text-zinc-400 hover:text-white text-sm transition-colors">
+                  My Bookings
+                </Link>
+              )}
               <span className="text-zinc-500 text-sm border-l border-zinc-700 pl-6">{user.name}</span>
               <button
                 onClick={handleLogout}
