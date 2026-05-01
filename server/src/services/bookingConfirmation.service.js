@@ -4,6 +4,7 @@ import { PAYMENT_STATUS, BOOKING_STATUS } from '../utils/constants.js';
 import logger from '../config/logger.js';
 import { paymentQueue } from '../queues/paymentEventsQueue.js';
 import { markSeatsAsBooked, releaseLock } from '../services/seatLockService.js';
+import { generateQRCode } from '../utils/qrCode.js';
 
 export const bookingConfirmationService = {
   /**
@@ -43,12 +44,24 @@ export const bookingConfirmationService = {
 
     // 4. Mark booking as CONFIRMED and seats as BOOKED
     try {
-      const booking = await Booking.findById(payment.booking);
+      const booking = await Booking.findById(payment.booking).populate('seats event');
 
       if (booking) {
         booking.status = BOOKING_STATUS.CONFIRMED;
+        booking.confirmedAt = new Date();
+
+        // 4.1. Generate QR Code for the ticket
+        const qrData = {
+          bookingId: booking._id,
+          event: booking.event?.title || booking.event,
+          seats: booking.seats.map(s => s.seatNumber),
+          amount: booking.totalAmount,
+          user: booking.user
+        };
+        booking.qrCode = await generateQRCode(qrData);
+
         await booking.save();
-        logger.info('Booking marked as CONFIRMED', { bookingId: booking._id });
+        logger.info('Booking marked as CONFIRMED and QR code generated', { bookingId: booking._id });
 
         // Mark all seats as BOOKED
         const seatIds = booking.seats.map(s => s.toString());
