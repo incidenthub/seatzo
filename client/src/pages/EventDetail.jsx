@@ -21,6 +21,9 @@ const STATUS_COLORS = {
   BOOKED: 'bg-red-900/50 border-red-800 cursor-not-allowed text-red-500',
   DISABLED: 'bg-zinc-900 border-zinc-800 cursor-not-allowed text-zinc-700',
   SELECTED: 'bg-violet-600 border-violet-400 cursor-pointer text-white ring-2 ring-violet-400',
+  // FIX Bug 6: seats locked by the current user look "selected" so they remain
+  // visually actionable and the user can proceed to checkout
+  LOCKED_BY_ME: 'bg-violet-600 border-violet-400 cursor-pointer text-white ring-2 ring-violet-400',
 };
 
 const EventDetail = () => {
@@ -35,7 +38,6 @@ const EventDetail = () => {
   const [loading, setLoading] = useState(true);
   const [locking, setLocking] = useState(false);
   const pollRef = useRef(null);
-  const timerRef = useRef(null);
 
   const fetchEvent = async () => {
     const res = await api.get(`/events/${id}`);
@@ -52,6 +54,7 @@ const EventDetail = () => {
     }
   };
 
+  // FIX Bug 8: added `id` to dependency array
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -62,14 +65,17 @@ const EventDetail = () => {
     init();
 
     pollRef.current = setInterval(fetchSeats, 5000);
-    return () => {
-      clearInterval(pollRef.current);
-      clearInterval(timerRef.current);
-    };
+    return () => clearInterval(pollRef.current);
   }, [id]);
 
-   const handleSeatClick = (seat) => {
-    if (seat.status !== 'AVAILABLE') return;
+  // FIX Bug 6: seats that are LOCKED by the current user can still be clicked
+  // (they're already in `selected` so this just allows deselection / re-entry
+  // after a page refresh mid-session via the lockedBy field).
+  const handleSeatClick = (seat) => {
+    const lockedByMe = seat.status === 'LOCKED' && seat.lockedBy === user?._id?.toString();
+
+    if (seat.status !== 'AVAILABLE' && !lockedByMe) return;
+
     if (selected.find((s) => s._id === seat._id)) {
       setSelected(selected.filter((s) => s._id !== seat._id));
     } else {
@@ -79,38 +85,56 @@ const EventDetail = () => {
   };
 
   const handleLock = async () => {
-    if (!user) { toast.error('Please login first'); navigate('/login'); return; }
-    if (selected.length === 0) { toast.error('Select at least one seat'); return; }
+    if (!user) {
+      toast.error('Please login first');
+      navigate('/login');
+      return;
+    }
 
+    if (selected.length === 0) {
+      toast.error('Select at least one seat');
+      return;
+    }
+
+    // FIX Bug 7: generate idempotency key and send it with the request
     const idempotencyKey = uuidv4();
     setLocking(true);
+
     try {
-      await api.post('/seats/lock', {
-        eventId: id,
-        seatIds: selected.map((s) => s._id),
-      });
+      await api.post(
+        '/seats/lock',
+        {
+          eventId: id,
+          seatIds: selected.map((s) => s._id),
+        },
+        {
+          headers: { 'Idempotency-Key': idempotencyKey },
+        }
+      );
+
+      // Get fresh seat data right after locking
+      const res = await api.get(`/seats/${id}`);
+      const freshSeats = res.data.seats;
+
+      // Carry selected seat objects forward with up-to-date status
+      const freshSelected = selected.map(
+        (sel) => freshSeats.find((s) => s._id === sel._id) ?? sel
+      );
+
+      setSeats(freshSeats);
 
       toast.success('Seats locked for 5 minutes!');
-
-      let secs = 300;
-      timerRef.current = setInterval(() => {
-        secs--;
-        if (secs <= 0) {
-          clearInterval(timerRef.current);
-          setSelected([]);
-          toast.error('Lock expired. Please re-select your seats.');
-        }
-      }, 1000);
 
       navigate('/checkout', {
         state: {
           eventId: id,
           event,
-          selectedSeats: selected,
-          pricing,
-          idempotencyKey
+          selectedSeats: freshSelected,
+          pricing: res.data.pricing,
+          idempotencyKey,
         },
       });
+
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not lock seats');
     } finally {
@@ -120,7 +144,8 @@ const EventDetail = () => {
 
   const formatPrice = (paise) => `₹${(paise / 100).toLocaleString('en-IN')}`;
   const formatDate = (date) => new Date(date).toLocaleDateString('en-IN', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   });
 
   const grouped = seats.reduce((acc, seat) => {
@@ -229,12 +254,18 @@ const EventDetail = () => {
                         </span>
                         <div className="flex gap-1 flex-wrap">
                           {rowSeats.map((seat) => {
-                            const isSelected = selected.find(
-                              (s) => s._id === seat._id,
-                            );
+                            const isSelected = !!selected.find((s) => s._id === seat._id);
+                            // FIX Bug 6: derive statusKey accounting for "locked by me"
+                            const lockedByMe =
+                              seat.status === 'LOCKED' &&
+                              seat.lockedBy === user?._id?.toString();
+
                             const statusKey = isSelected
-                              ? "SELECTED"
+                              ? 'SELECTED'
+                              : lockedByMe
+                              ? 'LOCKED_BY_ME'
                               : seat.status;
+
                             return (
                               <button
                                 key={seat._id}

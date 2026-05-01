@@ -58,7 +58,6 @@ export const releaseSeats = async (req, res) => {
 };
 
 // ─── Release All User Locks ────────────────────────────────────────────────
-// Called when user leaves checkout page or navigates away
 export const releaseAllLocks = async (req, res) => {
   try {
     const { eventId } = req.body;
@@ -86,23 +85,15 @@ export const getSeats = async (req, res) => {
   try {
     const { eventId } = req.params;
 
-    const cacheKey = `seats:${eventId}`;
-
-    // 1. Cache check
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      return res.json(JSON.parse(cached));
-    }
-
-    // 2. Viewer tracking
+   
     const viewerKey = `viewers:${eventId}`;
-    const viewerCount = await redis.incr(viewerKey);
+    const [viewerCount] = await redis
+      .multi()
+      .incr(viewerKey)
+      .expire(viewerKey, 300)
+      .exec();
 
-    if (viewerCount === 1) {
-      await redis.expire(viewerKey, 300);
-    }
-
-    // 3. Fetch seats & event data from DB
+    // ─── Fetch from DB ────────────────────────────────────────────────
     const [seats, event] = await Promise.all([
       Seat.find({ event: eventId }).select("_id seatNumber row section status price").lean(),
       Event.findById(eventId).lean()
@@ -112,45 +103,38 @@ export const getSeats = async (req, res) => {
       return res.status(404).json({ error: "Event not found" });
     }
 
-    // 4. Check Redis locks for real-time status override
-    const lockKeys = seats.map((s) => `seat:${eventId}:${s.seatNumber}`);
+    const lockKeys = seats.map((s) => `seat:${eventId}:${s._id}`);
     const lockedValues = lockKeys.length > 0 ? await redis.mGet(lockKeys) : [];
 
-   const updatedSeats = await Promise.all(
-  seats.map(async (seat, index) => {
-    const isLockedInRedis = lockedValues[index];
+   
+    const updatedSeats = seats.map((seat, index) => {
+      const lockOwner = lockedValues[index];
 
-    if (isLockedInRedis) {
-      return { ...seat, status: SEAT_STATUS.LOCKED };
-    }
+      if (lockOwner !== null) {
+        return {
+          ...seat,
+          status: SEAT_STATUS.LOCKED,
+          lockedBy: lockOwner,
+        };
+      }
 
-    // 🔥 Redis expired → fix MongoDB
-    if (seat.status === 'LOCKED') {
-      await Seat.updateOne(
-        { _id: seat._id },
-        {
-          status: 'AVAILABLE',
-          lockedBy: null,
-          lockExpiresAt: null,
-        }
-      );
-    }
+      return {
+        ...seat,
+        lockedBy: null,
+      };
+    });
 
-    return { ...seat, status: SEAT_STATUS.AVAILABLE };
-  })
-);
-
-    // 5. Calculate real-time availability
+    // ─── Availability ────────────────────────────────────────────────
     const availableSeats = updatedSeats.filter(
       (s) => s.status === SEAT_STATUS.AVAILABLE
     ).length;
 
-    // 6. Dynamic pricing
+    // ─── Pricing ─────────────────────────────────────────────────────
     const pricing = updatedSeats.length > 0
       ? await calculatePrice(event, viewerCount)
       : { price: event.basePrice, multiplier: 1, occupancy: 0, viewers: viewerCount };
 
-    // 7. Attach price per seat
+    // ─── Attach price ────────────────────────────────────────────────
     const seatsWithPrice = updatedSeats.map((seat) => ({
       ...seat,
       currentPrice: pricing.price
@@ -160,11 +144,11 @@ export const getSeats = async (req, res) => {
       eventId,
       viewers: viewerCount,
       seats: seatsWithPrice,
-      pricing
+      pricing,
+      availableSeats,
     };
 
-    // 8. Cache result for 5 seconds
-    await redis.set(cacheKey, JSON.stringify(response), { EX: 5 });
+    await redis.set(`seats:${eventId}`, JSON.stringify(response), { EX: 5 });
 
     res.json(response);
 
