@@ -1,11 +1,9 @@
 import redis from '../config/redis.js';
 import Seat from '../models/seat.model.js';
 
-// ─── Lock a single seat ───────────────────────────────────────────────────────
 export const lockSeat = async (eventId, seatId, userId) => {
   const key = `seat:${eventId}:${seatId}`;
 
-  // 🔥 Atomic Redis lock FIRST (source of truth)
   const result = await redis.set(key, userId, {
     NX: true,
     EX: 300, // 5 minutes
@@ -14,7 +12,6 @@ export const lockSeat = async (eventId, seatId, userId) => {
   if (result !== 'OK') return false;
 
   try {
-    // Optional DB sync (not source of truth)
     await Seat.findByIdAndUpdate(seatId, {
       status: 'LOCKED',
       lockedBy: userId,
@@ -72,7 +69,6 @@ export const lockMultipleSeats = async (eventId, seatIds, userId) => {
       const success = await lockSeat(eventId, seatId, userId);
 
       if (!success) {
-        // Rollback ONLY seats locked in this request
         await Promise.all(
           newlyLocked.map(id => releaseLock(eventId, id))
         );
@@ -108,37 +104,29 @@ export const markSeatsAsBooked = async (eventId, seatIds, bookingId) => {
     }
   );
 
-  // FIX Bug 5: pass keys as an array (works across all node-redis versions)
   const keys = seatIds.map(id => `seat:${eventId}:${id}`);
   if (keys.length > 0) {
     await redis.del(keys);
   }
 };
 
-// ─── Release ALL locks held by a user ─────────────────────────────────────────
-// FIX Bug 4: use Redis (source of truth) via key scan instead of DB query.
-// DB's lockedBy can lag behind if a previous DB sync failed.
+
 export const releaseAllUserLocks = async (eventId, userId) => {
-  // Scan for all seat lock keys belonging to this event
   const pattern = `seat:${eventId}:*`;
   const keys = [];
 
-  // Use SCAN to avoid blocking Redis with KEYS in production
   for await (const key of redis.scanIterator({ MATCH: pattern, COUNT: 100 })) {
     keys.push(key);
   }
 
   if (keys.length === 0) return { released: 0 };
 
-  // Fetch all values in one round-trip
   const values = await redis.mGet(keys);
 
-  // Filter to keys owned by this user
   const ownedKeys = keys.filter((_, i) => values[i] === userId);
 
   if (ownedKeys.length === 0) return { released: 0 };
 
-  // Extract seatIds from key format "seat:{eventId}:{seatId}"
   const ownedSeatIds = ownedKeys.map(k => k.split(':')[2]);
 
   await Promise.all([

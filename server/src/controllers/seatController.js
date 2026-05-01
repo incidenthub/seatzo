@@ -85,9 +85,7 @@ export const getSeats = async (req, res) => {
   try {
     const { eventId } = req.params;
 
-    // ─── Viewer tracking (atomic: pipeline avoids TTL race) ────────────
-    // node-redis v4: exec() returns [incrResult, expireResult] directly —
-    // NOT nested [err, val] pairs like ioredis does.
+   
     const viewerKey = `viewers:${eventId}`;
     const [viewerCount] = await redis
       .multi()
@@ -105,17 +103,14 @@ export const getSeats = async (req, res) => {
       return res.status(404).json({ error: "Event not found" });
     }
 
-    // ─── Redis Lock Check (source of truth for LOCKED state only) ─────
     const lockKeys = seats.map((s) => `seat:${eventId}:${s._id}`);
     const lockedValues = lockKeys.length > 0 ? await redis.mGet(lockKeys) : [];
 
-    // FIX Bug 1: Redis only overrides status → LOCKED when a lock exists.
-    // All other statuses (BOOKED, DISABLED, AVAILABLE) come from the DB.
+   
     const updatedSeats = seats.map((seat, index) => {
       const lockOwner = lockedValues[index];
 
       if (lockOwner !== null) {
-        // Redis says this seat is actively locked
         return {
           ...seat,
           status: SEAT_STATUS.LOCKED,
@@ -123,7 +118,6 @@ export const getSeats = async (req, res) => {
         };
       }
 
-      // No Redis lock — trust the DB status (AVAILABLE, BOOKED, DISABLED…)
       return {
         ...seat,
         lockedBy: null,
@@ -154,8 +148,6 @@ export const getSeats = async (req, res) => {
       availableSeats,
     };
 
-    // Short-lived cache for performance — never blindly trusted (Redis lock
-    // check above always runs against live data on each request)
     await redis.set(`seats:${eventId}`, JSON.stringify(response), { EX: 5 });
 
     res.json(response);
