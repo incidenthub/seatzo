@@ -1,102 +1,98 @@
 import redis from '../config/redis.js';
 import Seat from '../models/seat.model.js';
 
+// ─── Lock a single seat ───────────────────────────────────────────────────────
 export const lockSeat = async (eventId, seatId, userId) => {
-  // seatId is the MongoDB _id from frontend
-  const seat = await Seat.findById(seatId);
+  const key = `seat:${eventId}:${seatId}`;
 
-  if (!seat || seat.status !== 'AVAILABLE') {
-    return false;
-  }
-
-  // Use seatNumber for Redis key (more human-readable)
-  const key = `seat:${eventId}:${seat.seatNumber}`;
-
+  // 🔥 Atomic Redis lock FIRST (source of truth)
   const result = await redis.set(key, userId, {
     NX: true,
-    EX: 300,
+    EX: 300, // 5 minutes
   });
 
   if (result !== 'OK') return false;
 
   try {
-    const updated = await Seat.findByIdAndUpdate(
-      seatId,
-      {
-        status: 'LOCKED',
-        lockedBy: userId,
-        lockExpiresAt: new Date(Date.now() + 300_000),
-      },
-      { new: true }
-    );
-
-    if (!updated) {
-      await redis.del(key); // rollback Redis
-      return false;
-    }
+    // Optional DB sync (not source of truth)
+    await Seat.findByIdAndUpdate(seatId, {
+      status: 'LOCKED',
+      lockedBy: userId,
+      lockExpiresAt: new Date(Date.now() + 300_000),
+    });
 
     return true;
 
   } catch (err) {
+    // Rollback Redis if DB fails
     await redis.del(key);
     throw err;
   }
 };
 
 // ─── Release a single seat lock ───────────────────────────────────────────────
-// Clears both Redis key AND resets MongoDB status back to AVAILABLE.
 export const releaseLock = async (eventId, seatId) => {
-  // seatId is MongoDB _id
-  const seat = await Seat.findById(seatId);
+  const key = `seat:${eventId}:${seatId}`;
 
-  if (!seat) return;
-
-  const key = `seat:${eventId}:${seat.seatNumber}`;
-
-  // Run both in parallel — no dependency between them
   await Promise.all([
     redis.del(key),
-    Seat.findByIdAndUpdate(
-      seatId,
-      {
-        status: 'AVAILABLE',
-        lockedBy: null,
-        lockExpiresAt: null,
-      }
-    ),
+    Seat.findByIdAndUpdate(seatId, {
+      status: 'AVAILABLE',
+      lockedBy: null,
+      lockExpiresAt: null,
+    }),
   ]);
 };
 
-// ─── Release lock only if owned by user ────────────────────────────────────
+// ─── Release lock only if owned by user ───────────────────────────────────────
 export const releaseLockIfOwner = async (eventId, seatId, userId) => {
-  const seat = await Seat.findById(seatId);
-
-  if (!seat) return false;
-
-  const key = `seat:${eventId}:${seat.seatNumber}`;
+  const key = `seat:${eventId}:${seatId}`;
   const lockOwner = await redis.get(key);
 
-  // Verify ownership
-  if (lockOwner !== userId) {
-    return false;
-  }
+  if (lockOwner !== userId) return false;
 
   await Promise.all([
     redis.del(key),
-    Seat.findByIdAndUpdate(
-      seatId,
-      {
-        status: 'AVAILABLE',
-        lockedBy: null,
-        lockExpiresAt: null,
-      }
-    ),
+    Seat.findByIdAndUpdate(seatId, {
+      status: 'AVAILABLE',
+      lockedBy: null,
+      lockExpiresAt: null,
+    }),
   ]);
 
   return true;
 };
 
-// ─── Mark seats as BOOKED ──────────────────────────────────────────────────
+// ─── Lock multiple seats (transaction-like behavior) ──────────────────────────
+export const lockMultipleSeats = async (eventId, seatIds, userId) => {
+  const newlyLocked = [];
+
+  try {
+    for (const seatId of seatIds) {
+      const success = await lockSeat(eventId, seatId, userId);
+
+      if (!success) {
+        // Rollback ONLY seats locked in this request
+        await Promise.all(
+          newlyLocked.map(id => releaseLock(eventId, id))
+        );
+        return { success: false, failedSeat: seatId };
+      }
+
+      newlyLocked.push(seatId);
+    }
+
+    return { success: true };
+
+  } catch (err) {
+    await Promise.allSettled(
+      newlyLocked.map(id => releaseLock(eventId, id))
+    );
+    throw err;
+  }
+};
+
+// ─── Mark seats as BOOKED ─────────────────────────────────────────────────────
 export const markSeatsAsBooked = async (eventId, seatIds, bookingId) => {
   await Seat.updateMany(
     {
@@ -112,77 +108,58 @@ export const markSeatsAsBooked = async (eventId, seatIds, bookingId) => {
     }
   );
 
-  // Also clear from Redis — need to get seatNumbers to form the Redis keys
-  const seatsToRelease = await Seat.find({ _id: { $in: seatIds } }).select('seatNumber');
-  const keys = seatsToRelease.map(s => `seat:${eventId}:${s.seatNumber}`);
+  // FIX Bug 5: pass keys as an array (works across all node-redis versions)
+  const keys = seatIds.map(id => `seat:${eventId}:${id}`);
   if (keys.length > 0) {
-    await redis.del(...keys);
+    await redis.del(keys);
   }
 };
 
-export const lockMultipleSeats = async (eventId, seatIds, userId) => {
-  const newlyLocked = [];
-
-  try {
-    for (const seatId of seatIds) {
-      const success = await lockSeat(eventId, seatId, userId);
-
-      if (!success) {
-        // Roll back ONLY the seats we successfully locked in this specific request.
-        // This avoids accidentally releasing other seats the user might have in their cart.
-        await Promise.all(
-          newlyLocked.map(id => releaseLock(eventId, id))
-        );
-        return { success: false, failedSeat: seatId };
-      }
-
-      newlyLocked.push(seatId);
-    }
-
-    return { success: true };
-
-  } catch (err) {
-    // Best-effort rollback of whatever we managed to lock in this turn
-    await Promise.allSettled(
-      newlyLocked.map(id => releaseLock(eventId, id))
-    );
-    throw err;
-  }
-};
-
-// ─── Release ALL locks held by a user for an event ────────────────────────────
-// Called when user abandons checkout (back button, timeout, etc.)
-// Frees up all their held seats immediately instead of waiting for TTL.
+// ─── Release ALL locks held by a user ─────────────────────────────────────────
+// FIX Bug 4: use Redis (source of truth) via key scan instead of DB query.
+// DB's lockedBy can lag behind if a previous DB sync failed.
 export const releaseAllUserLocks = async (eventId, userId) => {
-  // Find all seats this user has locked in MongoDB
-  const lockedSeats = await Seat.find({
-    event:     eventId,
-    lockedBy:  userId,
-    status:    'LOCKED',
-  });
+  // Scan for all seat lock keys belonging to this event
+  const pattern = `seat:${eventId}:*`;
+  const keys = [];
 
-  if (lockedSeats.length === 0) return { released: 0 };
+  // Use SCAN to avoid blocking Redis with KEYS in production
+  for await (const key of redis.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+    keys.push(key);
+  }
 
-  // Release all in parallel — Redis + MongoDB for each seat
-  await Promise.all(
-    lockedSeats.map(seat => releaseLock(eventId, seat._id.toString()))
-  );
+  if (keys.length === 0) return { released: 0 };
 
-  return { released: lockedSeats.length };
+  // Fetch all values in one round-trip
+  const values = await redis.mGet(keys);
+
+  // Filter to keys owned by this user
+  const ownedKeys = keys.filter((_, i) => values[i] === userId);
+
+  if (ownedKeys.length === 0) return { released: 0 };
+
+  // Extract seatIds from key format "seat:{eventId}:{seatId}"
+  const ownedSeatIds = ownedKeys.map(k => k.split(':')[2]);
+
+  await Promise.all([
+    redis.del(ownedKeys),
+    Seat.updateMany(
+      { _id: { $in: ownedSeatIds } },
+      { status: 'AVAILABLE', lockedBy: null, lockExpiresAt: null }
+    ),
+  ]);
+
+  return { released: ownedKeys.length };
 };
 
-// ─── Get who owns a lock ──────────────────────────────────────────────────────
-// Returns the userId who locked this seat, or null if unlocked.
-// Called by Person A's booking controller to validate locks before payment.
+// ─── Get lock owner ───────────────────────────────────────────────────────────
 export const getLockOwner = async (eventId, seatId) => {
   const key = `seat:${eventId}:${seatId}`;
-  return await redis.get(key); // returns userId string or null
+  return await redis.get(key);
 };
 
-// ─── Get remaining TTL on a lock ─────────────────────────────────────────────
-// Returns seconds remaining, or -2 if key doesn't exist.
-// Useful for showing the countdown timer on the frontend.
+// ─── Get remaining TTL ────────────────────────────────────────────────────────
 export const getLockTTL = async (eventId, seatId) => {
   const key = `seat:${eventId}:${seatId}`;
-  return await redis.ttl(key); // seconds remaining
+  return await redis.ttl(key);
 };
