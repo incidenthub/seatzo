@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -29,20 +29,22 @@ const CARD_STYLE = {
 };
 
 // ─── Inner form (must be inside <Elements>) ───────────────────────────────────
-const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
+const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPaymentSuccess }) => {
   const stripe = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [cardError, setCardError] = useState("");
 
-  // Prices are stored in paise in the DB — divide by 100 for display
-  const formatPrice = (paise) => `₹${(Number(paise) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatPrice = (paise) =>
+    `₹${(Number(paise) / 100).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 
   const seatTotal = pricing ? pricing.price * selectedSeats.length : 0;
   const fees = Math.round(seatTotal * 0.12);
   const grandTotal = seatTotal + fees;
-  // Stripe requires the smallest currency unit (already in paise)
   const grandTotalInPaise = Math.round(grandTotal);
 
   const handlePay = async (e) => {
@@ -53,45 +55,38 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
     setCardError("");
 
     try {
-      // Step 1 — create payment intent on backend
+      // Step 1 — create payment intent
       const idempotencyKey = uuidv4();
       const { data } = await api.post("/payments/create", {
         bookingId: booking._id,
         idempotencyKey,
-        amount: grandTotalInPaise, // Stripe requires paise (₹1 = 100 paise)
+        amount: grandTotalInPaise,
       });
 
       const { clientSecret } = data.data;
 
-      // Step 2 — confirm card payment with Stripe
+      // Step 2 — confirm card with Stripe
       const { error, paymentIntent } = await stripe.confirmCardPayment(
         clientSecret,
-        {
-          payment_method: {
-            card: elements.getElement(CardElement),
-          },
-        },
+        { payment_method: { card: elements.getElement(CardElement) } },
       );
 
       if (error) {
         setCardError(error.message);
         toast.error(error.message);
-
-        // Release seat locks on payment failure
+        // Release locks only on payment failure
         await api
           .post("/seats/release", {
             eventId,
-            seatIds: selectedSeats.map((s) => s._id)
+            seatIds: selectedSeats.map((s) => s._id),
           })
           .catch(() => {});
-
         setLoading(false);
         return;
       }
 
       if (paymentIntent.status === "succeeded") {
-        // Step 3 — confirm booking on backend (verifies with Stripe, marks CONFIRMED)
-        // This is necessary because Stripe webhooks don't reach localhost in dev.
+        // Step 3 — confirm booking on backend
         const confirmRes = await api.post(`/bookings/${booking._id}/confirm`, {
           paymentIntentId: paymentIntent.id,
         });
@@ -101,6 +96,10 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
         if (confirmedBooking.status !== "CONFIRMED") {
           throw new Error("Booking confirmation failed — please contact support.");
         }
+
+        // FIX: signal parent that payment succeeded BEFORE navigating,
+        // so the cleanup useEffect knows NOT to release the seats.
+        onPaymentSuccess();
 
         toast.success("Payment successful! Booking confirmed 🎉");
         navigate("/booking-confirmation", {
@@ -274,22 +273,14 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
       </div>
 
       {/* Card input */}
-      <div
-        style={{
-          background: "#111113",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 16,
-          padding: 24,
-          marginBottom: 16,
-        }}
-      >
+      <div style={{ marginBottom: 24 }}>
         <div
           style={{
             fontSize: 12,
             color: "#71717a",
             textTransform: "uppercase",
             letterSpacing: 1,
-            marginBottom: 16,
+            marginBottom: 12,
           }}
         >
           Card Details
@@ -310,7 +301,6 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
           </div>
         )}
 
-        {/* Test card hint */}
         <div
           style={{
             marginTop: 12,
@@ -322,8 +312,7 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
             color: "#d97706",
           }}
         >
-          🧪 Test card: <strong>4242 4242 4242 4242</strong> · Any future date ·
-          Any CVC
+          🧪 Test card: <strong>4242 4242 4242 4242</strong> · Any future date · Any CVC
         </div>
       </div>
 
@@ -369,15 +358,24 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId }) => {
   );
 };
 
-// ─── Outer wrapper — creates booking then renders payment form ────────────────
+// ─── Outer wrapper ────────────────────────────────────────────────────────────
 const Checkout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { eventId, event, selectedSeats, pricing, idempotencyKey: stateIdempotencyKey } = location.state || {};
+  const {
+    eventId,
+    event,
+    selectedSeats,
+    pricing,
+    idempotencyKey: stateIdempotencyKey,
+  } = location.state || {};
 
   const [booking, setBooking] = useState(null);
   const [creatingBooking, setCreatingBooking] = useState(true);
   const [countdown, setCountdown] = useState(300);
+
+  // FIX: track whether payment completed so we don't release locks on successful checkout
+  const paymentSucceeded = useRef(false);
 
   useEffect(() => {
     if (!eventId || !selectedSeats?.length) {
@@ -406,10 +404,14 @@ const Checkout = () => {
     }
   }, [creatingBooking]);
 
-  // Release all seats when user leaves checkout page
+  // Release seats ONLY if payment did NOT succeed (back button, tab close, expiry)
+  // FIX: guard with paymentSucceeded ref so successful navigation doesn't wipe locks
+  // before/during the backend confirm call finishing up.
   useEffect(() => {
     return () => {
-      releaseAllSeats();
+      if (!paymentSucceeded.current) {
+        releaseAllSeats();
+      }
     };
   }, []);
 
@@ -418,7 +420,7 @@ const Checkout = () => {
     try {
       await api.post("/seats/release-all", { eventId }).catch(() => {});
     } catch (err) {
-      // Silent fail - seats will auto-release after 5 minutes anyway
+      // Silent fail — seats auto-release after 5 min TTL anyway
     }
   };
 
@@ -446,9 +448,7 @@ const Checkout = () => {
   };
 
   const formatTime = (secs) => {
-    const m = Math.floor(secs / 60)
-      .toString()
-      .padStart(2, "0");
+    const m = Math.floor(secs / 60).toString().padStart(2, "0");
     const s = (secs % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
@@ -477,13 +477,7 @@ const Checkout = () => {
           }}
         />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <p
-          style={{
-            color: "#71717a",
-            fontSize: 14,
-            fontFamily: "'DM Sans', sans-serif",
-          }}
-        >
+        <p style={{ color: "#71717a", fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
           Creating your booking...
         </p>
       </div>
@@ -528,10 +522,7 @@ const Checkout = () => {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                background:
-                  countdown < 60
-                    ? "rgba(239,68,68,0.1)"
-                    : "rgba(124,58,237,0.1)",
+                background: countdown < 60 ? "rgba(239,68,68,0.1)" : "rgba(124,58,237,0.1)",
                 border: `1px solid ${countdown < 60 ? "rgba(239,68,68,0.3)" : "rgba(124,58,237,0.3)"}`,
                 color: countdown < 60 ? "#f87171" : "#c084fc",
                 padding: "6px 14px",
@@ -556,6 +547,7 @@ const Checkout = () => {
             selectedSeats={selectedSeats}
             pricing={pricing}
             eventId={eventId}
+            onPaymentSuccess={() => { paymentSucceeded.current = true; }}
           />
         </Elements>
       </div>
