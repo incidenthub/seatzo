@@ -71,6 +71,17 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+
+    // Check-in tracking
+    checkedIn: {
+      type: Boolean,
+      default: false,
+    },
+
+    checkedInAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
