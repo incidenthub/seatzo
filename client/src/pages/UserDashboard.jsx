@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import api from "../utils/axios";
 import toast from "react-hot-toast";
 
@@ -121,14 +122,35 @@ const UserDashboard = () => {
                     </button>
                   )}
 
-                  {booking.status === "CONFIRMED" && booking.qrCode && (
-                    <div className="text-center">
-                      <p className="text-xs text-zinc-500 mb-1">QR Code</p>
-                      <img
-                        src={booking.qrCode}
-                        alt="QR"
-                        className="w-16 h-16"
-                      />
+                  {booking.status === "CONFIRMED" && (
+                    <div className="flex items-center gap-4">
+                      {booking.qrCode && (
+                        <div className="p-1 bg-white rounded-lg">
+                          <img
+                            src={booking.qrCode}
+                            alt="QR"
+                            className="w-12 h-12"
+                          />
+                        </div>
+                      )}
+                      <Link
+                        to={`/tickets/${booking._id}`}
+                        className="text-xs bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M15 3h6v6M10 14L21 3M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                        </svg>
+                        View Ticket
+                      </Link>
                     </div>
                   )}
                 </div>

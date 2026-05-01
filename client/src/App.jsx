@@ -94,6 +94,14 @@ const App = () => {
               }
             />
             <Route
+              path="/tickets/:id"
+              element={
+                <ProtectedRoute>
+                  <BookingConfirmation />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>

@@ -6,7 +6,7 @@ import stripe from '../config/stripe.js';
 import AppError from '../utils/appError.js';
 import { BOOKING_STATUS, SEAT_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
 import { paymentQueue } from '../queues/paymentEventsQueue.js';
-import { markSeatsAsBooked, releaseLock } from '../services/seatLockService.js';
+import { generateQRCode } from '../utils/qrCode.js';
 
 export const createBooking = async (req, res) => {
   const { eventId, seatIds, idempotencyKey } = req.body;
@@ -180,6 +180,17 @@ export const confirmBooking = async (req, res) => {
   // 5. Confirm the booking
   booking.status = BOOKING_STATUS.CONFIRMED;
   booking.confirmedAt = new Date();
+
+  // 5.1. Generate QR Code for the ticket
+  const qrData = {
+    bookingId: booking._id,
+    event: booking.event?.title || booking.event,
+    seats: booking.seats.map(s => s.seatNumber),
+    amount: booking.totalAmount,
+    user: booking.user
+  };
+  booking.qrCode = await generateQRCode(qrData);
+
   await booking.save();
 
   // BUG 2 FIX: extract raw seatId strings BEFORE any populate call.
@@ -223,4 +234,45 @@ export const confirmBooking = async (req, res) => {
   }
 
   res.status(200).json({ success: true, data: booking });
+};
+
+// ─── Check-in Ticket ─────────────────────────────────────────────────────────
+// POST /api/bookings/:id/check-in
+// Marks a ticket as scanned/used. Prevents multiple entry for the same ticket.
+export const checkIn = async (req, res) => {
+  const booking = await Booking.findById(req.params.id).populate('event');
+
+  if (!booking) {
+    throw new AppError('Booking not found', 404);
+  }
+
+  // 1. Verify that the booking is confirmed
+  if (booking.status !== BOOKING_STATUS.CONFIRMED) {
+    throw new AppError(`Cannot check in. Booking is in ${booking.status} status.`, 400);
+  }
+
+  // 2. Security: Ensure the person checking in is the organiser or an admin
+  if (booking.event.organiser.toString() !== req.user.id && req.user.role !== 'admin') {
+    throw new AppError('Only the event organiser can check in tickets', 403);
+  }
+
+  // 3. Prevent double entry
+  if (booking.checkedIn) {
+    throw new AppError(`Ticket already scanned at ${booking.checkedInAt.toLocaleTimeString()}`, 409);
+  }
+
+  // 4. Perform check-in
+  booking.checkedIn = true;
+  booking.checkedInAt = new Date();
+  await booking.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Check-in successful',
+    data: {
+      checkedInAt: booking.checkedInAt,
+      event: booking.event.title,
+      user: booking.user
+    }
+  });
 };

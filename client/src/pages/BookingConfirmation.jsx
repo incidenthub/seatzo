@@ -1,27 +1,55 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link, useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
+import api from "../utils/axios";
+import toast from "react-hot-toast";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 const BookingConfirmation = () => {
+  const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { booking, event } = location.state || {};
+  const [booking, setBooking] = useState(location.state?.booking || null);
+  const [event, setEvent] = useState(location.state?.event || null);
   const ticketRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
+  const [loading, setLoading] = useState(!booking);
 
   useEffect(() => {
-    if (!booking) {
+    if (!booking && id) {
+      const fetchBooking = async () => {
+        try {
+          const res = await api.get(`/bookings/${id}`);
+          setBooking(res.data.data);
+          setEvent(res.data.data.event);
+        } catch (err) {
+          console.error(err);
+          toast.error("Could not load ticket");
+          navigate("/dashboard");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchBooking();
+    } else if (!booking && !id) {
       navigate("/", { replace: true });
-      return;
+    } else {
+      setLoading(false);
     }
-    window.history.pushState(null, "", window.location.href);
-    window.onpopstate = () => navigate("/", { replace: true });
-    return () => {
-      window.onpopstate = null;
-    };
-  }, []);
+  }, [id, booking, navigate]);
+
+  useEffect(() => {
+    // Only prevent back button if we're on the confirmation page immediately after booking
+    if (booking && !id) {
+      window.history.pushState(null, "", window.location.href);
+      const handlePopState = () => navigate("/", { replace: true });
+      window.addEventListener("popstate", handlePopState);
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+      };
+    }
+  }, [booking, id, navigate]);
 
   const formatPrice = (p) => `₹${(p / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatDate = (d) =>
@@ -74,6 +102,13 @@ const BookingConfirmation = () => {
       setDownloading(false);
     }
   };
+
+  if (loading)
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
 
   if (!booking) return null;
 

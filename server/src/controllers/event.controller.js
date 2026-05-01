@@ -297,7 +297,7 @@ export const getAnalytics = async (req, res) => {
         .json({ error: "Forbidden — you do not own this event" });
     }
 
-    const [revenueResult, bookingsByDate, seatBreakdown] = await Promise.all([
+    const [revenueResult, bookingsByDate, seatBreakdown, checkInResult] = await Promise.all([
       // Total revenue + confirmed booking count
       Booking.aggregate([
         { $match: { event: event._id, status: "CONFIRMED" } },
@@ -329,10 +329,21 @@ export const getAnalytics = async (req, res) => {
         { $match: { event: event._id } },
         { $group: { _id: "$status", count: { $sum: 1 } } },
       ]),
+
+      // Check-in count
+      Booking.aggregate([
+        { $match: { event: event._id, status: "CONFIRMED", checkedIn: true } },
+        { $group: { _id: null, count: { $sum: 1 } } },
+      ]),
     ]);
 
     const totalRevenue = revenueResult[0]?.totalRevenue ?? 0;
     const totalBookings = revenueResult[0]?.totalBookings ?? 0;
+    const totalCheckedIn = checkInResult[0]?.count ?? 0;
+    const checkInRate = totalBookings > 0 
+      ? `${((totalCheckedIn / totalBookings) * 100).toFixed(1)}%`
+      : "0.0%";
+
     const soldSeats = event.totalSeats - event.availableSeats;
     const occupancyRate =
       event.totalSeats > 0
@@ -342,6 +353,8 @@ export const getAnalytics = async (req, res) => {
     res.json({
       totalRevenue,
       totalBookings,
+      totalCheckedIn,
+      checkInRate,
       totalSeats: event.totalSeats,
       availableSeats: event.availableSeats,
       soldSeats,

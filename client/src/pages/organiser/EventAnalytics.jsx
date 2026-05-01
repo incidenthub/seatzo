@@ -188,8 +188,9 @@ const EventAnalytics = () => {
           sub={`${data.availableSeats} remaining`}
         />
         <StatCard
-          label="Occupancy"
-          value={data.occupancyRate}
+          label="Turnout"
+          value={data.checkInRate}
+          sub={`${data.totalCheckedIn} / ${data.totalBookings} checked in`}
           accent="#4ade80"
         />
       </div>
