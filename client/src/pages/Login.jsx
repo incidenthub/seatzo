@@ -9,7 +9,6 @@ const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user) {
       if (user.role === "organiser") {
@@ -30,7 +29,6 @@ const Login = () => {
     setLoading(true);
     try {
       const user = await login(form.email, form.password);
-      console.log("returned user:", user);
       toast.success(`Welcome back, ${user.name}!`);
       if (user.role === "organiser") {
         navigate("/organiser/events");
@@ -45,61 +43,59 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">
-            Seat<span className="text-violet-400">zo</span>
+          <h1 className="text-4xl font-black text-[#333] tracking-tighter">
+            SEAT<span className="text-[#f84464]">ZO</span>
           </h1>
-          <p className="text-zinc-400 mt-2 text-sm">Sign in to your account</p>
+          <p className="text-gray-500 mt-2 font-medium">Please sign in to continue</p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="bg-white rounded-3xl p-10 shadow-xl shadow-gray-200/50 border border-gray-100">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="text-zinc-400 text-sm block mb-2">Email</label>
+              <label className="text-gray-400 text-[10px] font-black uppercase tracking-widest block mb-2">Email Address</label>
               <input
                 name="email"
                 type="email"
                 value={form.email}
                 onChange={handleChange}
-                placeholder="you@example.com"
+                placeholder="john@example.com"
                 required
-                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-violet-500 transition-colors"
+                className="w-full bg-gray-50 border border-gray-200 text-[#333] rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#f84464]/20 focus:border-[#f84464] transition-all"
               />
             </div>
 
             <div>
-              <label className="text-zinc-400 text-sm block mb-2">
-                Password
-              </label>
+              <label className="text-gray-400 text-[10px] font-black uppercase tracking-widest block mb-2">Password</label>
               <input
                 name="password"
                 type="password"
                 value={form.password}
                 onChange={handleChange}
-                placeholder="Your password"
+                placeholder="••••••••"
                 required
-                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-violet-500 transition-colors"
+                className="w-full bg-gray-50 border border-gray-200 text-[#333] rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#f84464]/20 focus:border-[#f84464] transition-all"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-violet-600 hover:bg-violet-500 disabled:bg-violet-800 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors text-sm"
+              className="w-full bg-[#f84464] hover:bg-[#d63955] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-black py-4 rounded-xl transition-all shadow-lg shadow-[#f84464]/20 text-sm uppercase tracking-widest"
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
-          <p className="text-zinc-500 text-sm text-center mt-6">
-            Don't have an account?{" "}
+          <p className="text-gray-400 text-sm text-center mt-8 font-medium">
+            New to Seatzo?{" "}
             <Link
               to="/register"
-              className="text-violet-400 hover:text-violet-300"
+              className="text-[#f84464] font-bold hover:underline"
             >
-              Sign up
+              Create account
             </Link>
           </p>
         </div>

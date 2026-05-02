@@ -4,9 +4,11 @@ import api from "../../utils/axios";
 import toast from "react-hot-toast";
 
 const CATEGORIES = [
+  "movie",
   "music",
+  "concert",
   "sports",
-  "comedy",
+  "standup",
   "theatre",
   "conference",
   "festival",
