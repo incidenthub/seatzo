@@ -1,6 +1,7 @@
 import redis from '../config/redis.js';
 import Seat from '../models/seat.model.js';
 
+// ─── Lock a single seat ───────────────────────────────────────────────────────
 export const lockSeat = async (eventId, seatId, userId) => {
   const key = `seat:${eventId}:${seatId}`;
 
@@ -11,7 +12,7 @@ export const lockSeat = async (eventId, seatId, userId) => {
 
   if (result !== 'OK') return false;
 
-  try {
+  try { 
     await Seat.findByIdAndUpdate(seatId, {
       status: 'LOCKED',
       lockedBy: userId,
@@ -21,7 +22,6 @@ export const lockSeat = async (eventId, seatId, userId) => {
     return true;
 
   } catch (err) {
-    // Rollback Redis if DB fails
     await redis.del(key);
     throw err;
   }
@@ -89,28 +89,32 @@ export const lockMultipleSeats = async (eventId, seatIds, userId) => {
 };
 
 // ─── Mark seats as BOOKED ─────────────────────────────────────────────────────
+// No status filter — payment is already confirmed with Stripe at this point,
+// so mark BOOKED regardless of current DB status. This guards against the
+// Checkout cleanup effect racing ahead and resetting seats to AVAILABLE
+// before this runs.
 export const markSeatsAsBooked = async (eventId, seatIds, bookingId) => {
   await Seat.updateMany(
     {
       event: eventId,
       _id: { $in: seatIds },
-      status: 'LOCKED'
     },
     {
       status: 'BOOKED',
       booking: bookingId,
       lockedBy: null,
-      lockExpiresAt: null
+      lockExpiresAt: null,
     }
   );
 
+  // node-redis v4: del() requires spread args, not a plain array
   const keys = seatIds.map(id => `seat:${eventId}:${id}`);
   if (keys.length > 0) {
-    await redis.del(keys);
+    await redis.del(...keys);
   }
 };
 
-
+// ─── Release ALL locks held by a user ─────────────────────────────────────────
 export const releaseAllUserLocks = async (eventId, userId) => {
   const pattern = `seat:${eventId}:*`;
   const keys = [];
@@ -122,7 +126,6 @@ export const releaseAllUserLocks = async (eventId, userId) => {
   if (keys.length === 0) return { released: 0 };
 
   const values = await redis.mGet(keys);
-
   const ownedKeys = keys.filter((_, i) => values[i] === userId);
 
   if (ownedKeys.length === 0) return { released: 0 };
@@ -130,7 +133,7 @@ export const releaseAllUserLocks = async (eventId, userId) => {
   const ownedSeatIds = ownedKeys.map(k => k.split(':')[2]);
 
   await Promise.all([
-    redis.del(ownedKeys),
+    redis.del(...ownedKeys),
     Seat.updateMany(
       { _id: { $in: ownedSeatIds } },
       { status: 'AVAILABLE', lockedBy: null, lockExpiresAt: null }

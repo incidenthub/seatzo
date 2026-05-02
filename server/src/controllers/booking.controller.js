@@ -19,52 +19,43 @@ export const createBooking = async (req, res) => {
   // 1. Check idempotency
   let booking = await Booking.findOne({ idempotencyKey, user: userId });
   if (booking) {
-    return res.status(200).json({
-      success: true,
-      data: booking
-    });
+    return res.status(200).json({ success: true, data: booking });
   }
 
-  // 2. Validate event exists (and fetch pricing rules or basePrice if needed)
+  // 2. Validate event exists
   const event = await Event.findById(eventId);
   if (!event) {
     throw new AppError('Event not found', 404);
   }
 
-  // 3. Validate logic for seats lock mapping
-  // Only allow booking if the user actually holds the locks
+  // 3. Validate seats
   const seats = await Seat.find({ _id: { $in: seatIds }, event: eventId });
-  
+
   if (seats.length !== seatIds.length) {
     throw new AppError('One or more invalid seats selected', 400);
   }
-  
-  let totalAmount = 0;
-  
-  // 2.5 Check if any of these seats already have a PENDING booking
-  // This prevents double entries if idempotency fails or multiple tabs are open
+
+  // 4. Check if any of these seats already have a PENDING booking for this user
   const existingPending = await Booking.findOne({
     seats: { $in: seatIds },
     status: BOOKING_STATUS.PENDING,
-    user: userId // Only catch if it's the same user to avoid blocking others if locks are weird
+    user: userId,
   });
 
   if (existingPending) {
-    return res.status(200).json({
-      success: true,
-      data: existingPending
-    });
+    return res.status(200).json({ success: true, data: existingPending });
   }
+
+  let totalAmount = 0;
 
   for (const seat of seats) {
     if (seat.status !== SEAT_STATUS.LOCKED || seat.lockedBy.toString() !== userId) {
       throw new AppError(`Seat ${seat.seatNumber} is not currently locked by you`, 403);
     }
-    // TODO: Ideally apply dynamic pricing here, for now using base seat price
     totalAmount += seat.price;
   }
 
-  // Calculate taxes / convenience fee (12% as per frontend mock)
+  // Calculate taxes / convenience fee (12%)
   const fees = Math.round(totalAmount * 0.12);
   const finalTotal = totalAmount + fees;
 
@@ -75,17 +66,14 @@ export const createBooking = async (req, res) => {
       seats: seatIds,
       totalAmount: finalTotal,
       status: BOOKING_STATUS.PENDING,
-      idempotencyKey
+      idempotencyKey,
     });
 
-    res.status(201).json({
-      success: true,
-      data: booking
-    });
+    res.status(201).json({ success: true, data: booking });
   } catch (error) {
-    if (error.code === 11000) { // Dupe Idempotency
-        booking = await Booking.findOne({ idempotencyKey });
-        return res.status(200).json({ success: true, data: booking });
+    if (error.code === 11000) {
+      booking = await Booking.findOne({ idempotencyKey });
+      return res.status(200).json({ success: true, data: booking });
     }
     throw error;
   }
@@ -93,42 +81,31 @@ export const createBooking = async (req, res) => {
 
 export const getBookings = async (req, res) => {
   const bookings = await Booking.find({ user: req.user._id })
-                                .populate('event', 'title posterUrl date')
-                                .populate('seats', 'seatNumber section')
-                                .sort('-createdAt');
-  
-  res.status(200).json({
-    success: true,
-    data: bookings
-  });
+    .populate('event', 'title posterUrl date')
+    .populate('seats', 'seatNumber section')
+    .sort('-createdAt');
+
+  res.status(200).json({ success: true, data: bookings });
 };
 
 export const getBookingById = async (req, res) => {
   const booking = await Booking.findById(req.params.id)
-                               .populate('event')
-                               .populate('seats', 'seatNumber section price');
-  
-  if (!booking) {
-    throw new AppError('Booking not found', 404);
-  }
+    .populate('event')
+    .populate('seats', 'seatNumber section price');
+
+  if (!booking) throw new AppError('Booking not found', 404);
 
   if (booking.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
     throw new AppError('Not authorized to access this booking', 403);
   }
 
-  res.status(200).json({
-    success: true,
-    data: booking
-  });
+  res.status(200).json({ success: true, data: booking });
 };
 
 export const cancelBooking = async (req, res) => {
-  // Can only cancel pending bookings manually
   const booking = await Booking.findById(req.params.id);
 
-  if (!booking) {
-    throw new AppError('Booking not found', 404);
-  }
+  if (!booking) throw new AppError('Booking not found', 404);
 
   if (booking.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
     throw new AppError('Not authorized to cancel this booking', 403);
@@ -142,35 +119,34 @@ export const cancelBooking = async (req, res) => {
   booking.cancelledAt = new Date();
   await booking.save();
 
-  // Theoretically we should release seats, but the TTL cron job does that automatically for LOCKS
+  // BUG 3 FIX: actively release Redis locks + reset seat status immediately
+  // instead of waiting for the 5-minute Redis TTL to expire naturally.
+  const eventId = booking.event.toString();
+  await Promise.allSettled(
+    booking.seats.map((seatId) => releaseLock(eventId, seatId.toString()))
+  );
 
-  res.status(200).json({
-    success: true,
-    message: 'Booking cancelled'
-  });
+  res.status(200).json({ success: true, message: 'Booking cancelled' });
 };
 
 // ─── Confirm Booking ──────────────────────────────────────────────────────────
-// POST /api/bookings/:id/confirm
-// Verifies payment with Stripe directly (no webhook required) then transitions
-// Booking → CONFIRMED, Seats → BOOKED, Event.availableSeats decremented.
 export const confirmBooking = async (req, res) => {
   const { paymentIntentId } = req.body;
 
-  if (!paymentIntentId) {
-    throw new AppError('paymentIntentId is required', 400);
-  }
+  if (!paymentIntentId) throw new AppError('paymentIntentId is required', 400);
 
-  // 1. Load booking and verify ownership
-  const booking = await Booking.findById(req.params.id).populate("seats");
+  // 1. Load booking — do NOT populate seats yet (we need raw ObjectIds for queries)
+  const booking = await Booking.findById(req.params.id);
   if (!booking) throw new AppError('Booking not found', 404);
 
   if (booking.user.toString() !== req.user.id) {
     throw new AppError('Not authorized', 403);
   }
 
-  // 2. Idempotency — already confirmed, just return it
+  // 2. Idempotency — already confirmed
   if (booking.status === BOOKING_STATUS.CONFIRMED) {
+    // Populate before returning so the frontend gets seat details
+    await booking.populate('seats', 'seatNumber section price');
     return res.status(200).json({ success: true, data: booking });
   }
 
@@ -178,7 +154,7 @@ export const confirmBooking = async (req, res) => {
     throw new AppError(`Cannot confirm a booking in ${booking.status} status`, 400);
   }
 
-  // 3. Verify the payment actually succeeded with Stripe (source of truth)
+  // 3. Verify payment with Stripe
   let intent;
   try {
     intent = await stripe.paymentIntents.retrieve(paymentIntentId);
@@ -190,7 +166,7 @@ export const confirmBooking = async (req, res) => {
     throw new AppError(`Payment not completed. Stripe status: ${intent.status}`, 402);
   }
 
-  // 4. Mark the linked Payment record as SUCCESS
+  // 4. Mark the Payment record as SUCCESS
   const payment = await Payment.findOneAndUpdate(
     { stripePaymentIntentId: paymentIntentId },
     { status: PAYMENT_STATUS.SUCCESS },
@@ -198,7 +174,6 @@ export const confirmBooking = async (req, res) => {
   );
 
   if (payment) {
-    // 4.1. Link payment to booking
     booking.paymentId = payment._id;
   }
 
@@ -218,33 +193,41 @@ export const confirmBooking = async (req, res) => {
 
   await booking.save();
 
-  // 6. Mark all seats as BOOKED
-  await Seat.updateMany(
-    { _id: { $in: booking.seats } },
-    { $set: { status: SEAT_STATUS.BOOKED } },
-  );
+  // BUG 2 FIX: extract raw seatId strings BEFORE any populate call.
+  // After populate(), booking.seats becomes full objects — passing those
+  // into Seat.updateMany's $in filter causes only the first seat to match.
+  const seatIds = booking.seats.map((id) => id.toString());
+  const eventId = booking.event.toString();
 
-  // 7. Decrement availableSeats on the Event
+  // BUG 1 FIX: use markSeatsAsBooked so Redis lock keys are deleted
+  // alongside the DB status update, keeping both stores in sync.
+  await markSeatsAsBooked(eventId, seatIds, booking._id);
+
+  // 6. Decrement availableSeats on the Event
   await Event.findByIdAndUpdate(booking.event, {
-    $inc: { availableSeats: -booking.seats.length },
+    $inc: { availableSeats: -seatIds.length },
   });
 
-  // 8. Trigger background side-effects (Email, etc.)
+  // 7. Populate seats for the response so BookingConfirmation can render seat numbers
+  await booking.populate('seats', 'seatNumber section price');
+
+  // 8. Trigger background side-effects (email, etc.)
   if (payment) {
-    await paymentQueue.add('PAYMENT_SUCCESS', {
-      paymentId: payment._id,
-      paymentIntentId: payment.stripePaymentIntentId,
-      bookingId: booking._id,
-      eventId: booking.event
-    }, {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 5000,
+    await paymentQueue.add(
+      'PAYMENT_SUCCESS',
+      {
+        paymentId: payment._id,
+        paymentIntentId: payment.stripePaymentIntentId,
+        bookingId: booking._id,
+        eventId: booking.event,
       },
-      removeOnComplete: true,
-      removeOnFail: false
-    });
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      }
+    );
     console.log(`[ConfirmBooking] Triggered async worker for Booking ${booking._id}`);
   } else {
     console.warn(`[ConfirmBooking] Payment record not found for intent ${paymentIntentId}. Email skipped.`);

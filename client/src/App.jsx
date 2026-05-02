@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -25,6 +26,7 @@ import EventAnalytics from "./pages/organiser/EventAnalytics";
 
 const App = () => {
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <AuthProvider>
         <Toaster
@@ -113,6 +115,7 @@ const App = () => {
         </Routes>
       </AuthProvider>
     </BrowserRouter>
+    </ThemeProvider>
   );
 };
 
