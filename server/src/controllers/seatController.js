@@ -134,10 +134,10 @@ export const getSeats = async (req, res) => {
       ? await calculatePrice(event, viewerCount)
       : { price: event.basePrice, multiplier: 1, occupancy: 0, viewers: viewerCount };
 
-    // ─── Attach price ────────────────────────────────────────────────
+    // ─── Attach dynamic price ────────────────────────────────────────
     const seatsWithPrice = updatedSeats.map((seat) => ({
       ...seat,
-      currentPrice: pricing.price
+      price: Math.round(seat.price * (pricing.multiplier || 1))
     }));
 
     const response = {
