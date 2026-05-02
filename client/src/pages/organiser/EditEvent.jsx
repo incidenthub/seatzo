@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 
-const CATEGORIES = ['music', 'sports', 'comedy', 'theatre', 'conference', 'festival', 'other'];
+const CATEGORIES = ['movie', 'music', 'concert', 'sports', 'standup', 'theatre', 'conference', 'festival', 'other'];
 
 const inputStyle = {
   width: '100%', background: '#18181b', border: '1px solid rgba(255,255,255,0.08)',

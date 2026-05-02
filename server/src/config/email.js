@@ -93,73 +93,102 @@ export const sendBookingConfirmation = async (to, name, data) => {
   });
 
   try {
+    const attachments = [];
+    let qrHtml = '';
+
+    if (data.qrCode && data.qrCode.startsWith('data:')) {
+      const qrBase64 = data.qrCode.split(',')[1];
+      attachments.push({
+        filename: 'ticket-qr.png',
+        content: qrBase64,
+        encoding: 'base64',
+        cid: 'ticketqr'
+      });
+      qrHtml = `
+        <div style="text-align: center; border: 2px dashed #e2e8f0; border-radius: 20px; padding: 32px; background-color: #ffffff;">
+          <p style="margin: 0 0 20px; font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px;">Entry QR Code</p>
+          <div style="background-color: #ffffff; padding: 12px; border: 1px solid #f1f5f9; border-radius: 16px; display: inline-block; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
+            <img src="cid:ticketqr" alt="QR Code" style="width: 180px; height: 180px; display: block; border-radius: 8px;" />
+          </div>
+          <p style="margin: 20px 0 0; font-size: 13px; font-weight: 600; color: #1e293b;">Scan at the venue entrance</p>
+          <p style="margin: 4px 0 0; font-size: 12px; color: #94a3b8;">One scan per ticket. Do not share this code.</p>
+        </div>
+      `;
+    } else {
+      qrHtml = `
+        <div style="text-align: center; padding: 20px;">
+          <a href="${env.appUrl}/dashboard" style="display: inline-block; background-color: #f84464; color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 10px 15px -3px rgba(248,68,100,0.3);">View Your Digital Ticket</a>
+        </div>
+      `;
+    }
+
     await transporter.sendMail({
-      from: env.email.fromEmail,
+      from: `"Seatzo" <${env.email.fromEmail}>`,
       to,
       subject: `Confirmed: ${data.eventTitle} 🎫`,
+      attachments,
       html: `
-      <div style="background-color: #f8fafc; padding: 40px 20px; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-          <!-- Header -->
-          <div style="background-color: #7c3aed; padding: 40px 40px 30px; text-align: center;">
-            <div style="color: #ffffff; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; opacity: 0.9;">Booking Confirmed</div>
-            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">You're going to ${data.eventTitle}!</h1>
+      <div style="background-color: #f5f5f7; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);">
+          <!-- Header Card -->
+          <div style="background: linear-gradient(135deg, #f84464 0%, #d63955 100%); padding: 50px 40px; text-align: center;">
+            <div style="display: inline-block; background-color: rgba(255,255,255,0.2); color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; padding: 6px 16px; border-radius: 100px; margin-bottom: 20px;">Order Success</div>
+            <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -1px; line-height: 1.1;">You're going to<br/>${data.eventTitle}!</h1>
           </div>
 
-          <!-- Body -->
+          <!-- Body Content -->
           <div style="padding: 40px;">
-            <p style="margin: 0 0 24px; font-size: 16px; color: #475569; line-height: 1.6;">Hi ${name},</p>
-            <p style="margin: 0 0 32px; font-size: 16px; color: #475569; line-height: 1.6;">Your tickets are ready! We've confirmed your booking and secured your seats. Here are your event details:</p>
+            <p style="margin: 0 0 24px; font-size: 17px; font-weight: 500; color: #1e293b;">Hi ${name},</p>
+            <p style="margin: 0 0 32px; font-size: 15px; color: #64748b; line-height: 1.6;">Your tickets are confirmed! We've secured your spots for the show. Pack your excitement and we'll see you there.</p>
 
-            <!-- Event Card -->
-            <div style="background-color: #f1f5f9; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
-              <h2 style="margin: 0 0 16px; font-size: 18px; font-weight: 700; color: #1e293b;">${data.eventTitle}</h2>
-              <div style="display: flex; margin-bottom: 12px;">
-                <div style="color: #64748b; font-size: 14px; width: 100px;">Date</div>
-                <div style="color: #1e293b; font-size: 14px; font-weight: 600;">${dateStr}</div>
+            <!-- Event Details Grid -->
+            <div style="background-color: #f8fafc; border: 1px solid #f1f5f9; border-radius: 20px; padding: 30px; margin-bottom: 32px;">
+              <div style="margin-bottom: 24px;">
+                <div style="color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">Event & Venue</div>
+                <div style="color: #1e293b; font-size: 18px; font-weight: 800;">${data.eventTitle}</div>
+                <div style="color: #64748b; font-size: 14px; margin-top: 4px;">${data.venue}, ${data.city}</div>
               </div>
-              <div style="display: flex; margin-bottom: 12px;">
-                <div style="color: #64748b; font-size: 14px; width: 100px;">Time</div>
-                <div style="color: #1e293b; font-size: 14px; font-weight: 600;">${timeStr}</div>
+              
+              <div style="display: flex; gap: 20px; margin-bottom: 24px;">
+                <div style="flex: 1;">
+                   <div style="color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Date</div>
+                   <div style="color: #1e293b; font-size: 14px; font-weight: 700;">${dateStr}</div>
+                </div>
+                <div style="flex: 1;">
+                   <div style="color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Time</div>
+                   <div style="color: #1e293b; font-size: 14px; font-weight: 700;">${timeStr}</div>
+                </div>
               </div>
-              <div style="display: flex; margin-bottom: 12px;">
-                <div style="color: #64748b; font-size: 14px; width: 100px;">Venue</div>
-                <div style="color: #1e293b; font-size: 14px; font-weight: 600;">${data.venue}, ${data.city}</div>
-              </div>
-              <div style="display: flex; margin-bottom: 12px;">
-                <div style="color: #64748b; font-size: 14px; width: 100px;">Seats</div>
-                <div style="color: #1e293b; font-size: 14px; font-weight: 600;">${data.seats.join(", ")}</div>
-              </div>
-              <div style="display: flex; border-top: 1px solid #e2e8f0; margin-top: 16px; padding-top: 16px;">
-                <div style="color: #64748b; font-size: 14px; width: 100px;">Ref ID</div>
-                <div style="color: #7c3aed; font-size: 14px; font-weight: 700; font-family: monospace;">#${refId}</div>
+
+              <div style="display: flex; gap: 20px; border-top: 1px solid #f1f5f9; padding-top: 24px;">
+                <div style="flex: 1;">
+                   <div style="color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Seats</div>
+                   <div style="color: #1e293b; font-size: 14px; font-weight: 700;">${data.seats.join(", ")}</div>
+                </div>
+                <div style="flex: 1;">
+                   <div style="color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Reference</div>
+                   <div style="color: #f84464; font-size: 14px; font-weight: 800; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">#${refId}</div>
+                </div>
               </div>
             </div>
 
-            <!-- Total -->
-            <div style="text-align: center; margin-bottom: 32px;">
-              <div style="font-size: 14px; color: #64748b; margin-bottom: 4px;">Total Paid</div>
-              <div style="font-size: 32px; font-weight: 800; color: #1e293b;">₹${(data.amount / 100).toLocaleString("en-IN")}</div>
+            <!-- Payment Summary -->
+            <div style="text-align: center; margin-bottom: 40px; padding: 0 20px;">
+              <div style="font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Amount Paid</div>
+              <div style="font-size: 36px; font-weight: 900; color: #1e293b; letter-spacing: -1px;">₹${(data.amount / 100).toLocaleString("en-IN")}</div>
             </div>
 
-            <!-- QR Code -->
-            ${data.qrCode ? `
-              <div style="text-align: center; border: 2px dashed #e2e8f0; border-radius: 12px; padding: 24px;">
-                <p style="margin: 0 0 16px; font-size: 14px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Entry QR Code</p>
-                <img src="${data.qrCode}" alt="QR Code" style="width: 180px; height: 180px; display: block; margin: 0 auto;" />
-                <p style="margin: 16px 0 0; font-size: 12px; color: #94a3b8;">Show this code at the gate for entry</p>
-              </div>
-            ` : `
-              <div style="text-align: center;">
-                <a href="${env.appUrl}/dashboard" style="display: inline-block; background-color: #7c3aed; color: #ffffff; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">View Your Tickets</a>
-              </div>
-            `}
+            <!-- QR Section -->
+            ${qrHtml}
           </div>
 
-          <!-- Footer -->
-          <div style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="margin: 0 0 8px; font-size: 14px; color: #64748b;">Questions? Contact us at support@seatzo.com</p>
-            <p style="margin: 0; font-size: 12px; color: #94a3b8;">&copy; 2026 Seatzo Ticketing Services Pvt Ltd. All rights reserved.</p>
+          <!-- Bottom Branding -->
+          <div style="background-color: #fafafa; padding: 40px; text-align: center; border-top: 1px solid #f5f5f7;">
+            <p style="margin: 0 0 12px; font-size: 14px; font-weight: 500; color: #64748b;">Enjoy the show!</p>
+            <div style="margin-bottom: 24px;">
+               <span style="font-weight: 900; color: #d1d5db; letter-spacing: 2px;">SEATZO</span>
+            </div>
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">Questions? Contact us at <a href="mailto:support@seatzo.com" style="color: #f84464; text-decoration: none; font-weight: 600;">support@seatzo.com</a><br/>&copy; 2026 Seatzo Ticketing Services Pvt Ltd.</p>
           </div>
         </div>
       </div>
