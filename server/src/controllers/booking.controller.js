@@ -7,6 +7,8 @@ import AppError from '../utils/appError.js';
 import { BOOKING_STATUS, SEAT_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
 import { paymentQueue } from '../queues/paymentEventsQueue.js';
 import { generateQRCode } from '../utils/qrCode.js';
+// FIX 1: import the seat lock helpers that were missing
+import { markSeatsAsBooked, releaseLock } from '../services/seatLockService.js';
 
 export const createBooking = async (req, res) => {
   const { eventId, seatIds, idempotencyKey } = req.body;
@@ -16,38 +18,33 @@ export const createBooking = async (req, res) => {
     throw new AppError('eventId, seatIds, and idempotencyKey are required', 400);
   }
 
-  // 1. Check idempotency
+  // 1. Idempotency check
   let booking = await Booking.findOne({ idempotencyKey, user: userId });
   if (booking) {
     return res.status(200).json({ success: true, data: booking });
   }
 
-  // 2. Validate event exists
+  // 2. Validate event
   const event = await Event.findById(eventId);
-  if (!event) {
-    throw new AppError('Event not found', 404);
-  }
+  if (!event) throw new AppError('Event not found', 404);
 
   // 3. Validate seats
   const seats = await Seat.find({ _id: { $in: seatIds }, event: eventId });
-
   if (seats.length !== seatIds.length) {
     throw new AppError('One or more invalid seats selected', 400);
   }
 
-  // 4. Check if any of these seats already have a PENDING booking for this user
+  // 4. Prevent duplicate PENDING booking for same user + seats
   const existingPending = await Booking.findOne({
     seats: { $in: seatIds },
     status: BOOKING_STATUS.PENDING,
     user: userId,
   });
-
   if (existingPending) {
     return res.status(200).json({ success: true, data: existingPending });
   }
 
   let totalAmount = 0;
-
   for (const seat of seats) {
     if (seat.status !== SEAT_STATUS.LOCKED || seat.lockedBy.toString() !== userId) {
       throw new AppError(`Seat ${seat.seatNumber} is not currently locked by you`, 403);
@@ -55,7 +52,6 @@ export const createBooking = async (req, res) => {
     totalAmount += seat.price;
   }
 
-  // Calculate taxes / convenience fee (12%)
   const fees = Math.round(totalAmount * 0.12);
   const finalTotal = totalAmount + fees;
 
@@ -68,7 +64,6 @@ export const createBooking = async (req, res) => {
       status: BOOKING_STATUS.PENDING,
       idempotencyKey,
     });
-
     res.status(201).json({ success: true, data: booking });
   } catch (error) {
     if (error.code === 11000) {
@@ -84,7 +79,6 @@ export const getBookings = async (req, res) => {
     .populate('event', 'title posterUrl date')
     .populate('seats', 'seatNumber section')
     .sort('-createdAt');
-
   res.status(200).json({ success: true, data: bookings });
 };
 
@@ -104,7 +98,6 @@ export const getBookingById = async (req, res) => {
 
 export const cancelBooking = async (req, res) => {
   const booking = await Booking.findById(req.params.id);
-
   if (!booking) throw new AppError('Booking not found', 404);
 
   if (booking.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
@@ -119,8 +112,7 @@ export const cancelBooking = async (req, res) => {
   booking.cancelledAt = new Date();
   await booking.save();
 
-  // BUG 3 FIX: actively release Redis locks + reset seat status immediately
-  // instead of waiting for the 5-minute Redis TTL to expire naturally.
+  // Release Redis locks + reset seat status immediately
   const eventId = booking.event.toString();
   await Promise.allSettled(
     booking.seats.map((seatId) => releaseLock(eventId, seatId.toString()))
@@ -132,10 +124,9 @@ export const cancelBooking = async (req, res) => {
 // ─── Confirm Booking ──────────────────────────────────────────────────────────
 export const confirmBooking = async (req, res) => {
   const { paymentIntentId } = req.body;
-
   if (!paymentIntentId) throw new AppError('paymentIntentId is required', 400);
 
-  // 1. Load booking — do NOT populate seats yet (we need raw ObjectIds for queries)
+  // 1. Load booking without populate — we need raw ObjectIds for seat operations
   const booking = await Booking.findById(req.params.id);
   if (!booking) throw new AppError('Booking not found', 404);
 
@@ -145,7 +136,6 @@ export const confirmBooking = async (req, res) => {
 
   // 2. Idempotency — already confirmed
   if (booking.status === BOOKING_STATUS.CONFIRMED) {
-    // Populate before returning so the frontend gets seat details
     await booking.populate('seats', 'seatNumber section price');
     return res.status(200).json({ success: true, data: booking });
   }
@@ -161,57 +151,54 @@ export const confirmBooking = async (req, res) => {
   } catch (err) {
     throw new AppError(`Stripe verification failed: ${err.message}`, 502);
   }
-
   if (intent.status !== 'succeeded') {
     throw new AppError(`Payment not completed. Stripe status: ${intent.status}`, 402);
   }
 
-  // 4. Mark the Payment record as SUCCESS
+  // 4. Mark Payment as SUCCESS
+  // FIX 3: use returnDocument instead of deprecated `new: true`
   const payment = await Payment.findOneAndUpdate(
     { stripePaymentIntentId: paymentIntentId },
     { status: PAYMENT_STATUS.SUCCESS },
-    { new: true }
+    { returnDocument: 'after' }
   );
+  if (payment) booking.paymentId = payment._id;
 
-  if (payment) {
-    booking.paymentId = payment._id;
-  }
+  // 5. Extract raw seatIds and eventId BEFORE any populate or save
+  //    (populate turns ObjectIds into full objects, breaking $in queries)
+  const seatIds = booking.seats.map((id) => id.toString());
+  const eventId = booking.event.toString();
 
-  // 5. Confirm the booking
+  // 6. Confirm booking status
   booking.status = BOOKING_STATUS.CONFIRMED;
   booking.confirmedAt = new Date();
 
-  // 5.1. Generate QR Code for the ticket
+  // 7. Generate QR code AFTER extracting seatIds so we can use the raw strings.
+  //    booking.seats are still ObjectIds here — populate only for the QR display.
+  //    FIX 2: don't call s.seatNumber on unpopulated ObjectIds — use seatIds strings
   const qrData = {
-    bookingId: booking._id,
-    event: booking.event?.title || booking.event,
-    seats: booking.seats.map(s => s.seatNumber),
+    bookingId: booking._id.toString(),
+    eventId,
+    seatIds,
     amount: booking.totalAmount,
-    user: booking.user
+    userId: booking.user.toString(),
   };
   booking.qrCode = await generateQRCode(qrData);
 
   await booking.save();
 
-  // BUG 2 FIX: extract raw seatId strings BEFORE any populate call.
-  // After populate(), booking.seats becomes full objects — passing those
-  // into Seat.updateMany's $in filter causes only the first seat to match.
-  const seatIds = booking.seats.map((id) => id.toString());
-  const eventId = booking.event.toString();
-
-  // BUG 1 FIX: use markSeatsAsBooked so Redis lock keys are deleted
-  // alongside the DB status update, keeping both stores in sync.
+  // 8. Mark seats BOOKED in DB + delete Redis lock keys
   await markSeatsAsBooked(eventId, seatIds, booking._id);
 
-  // 6. Decrement availableSeats on the Event
+  // 9. Decrement availableSeats on Event
   await Event.findByIdAndUpdate(booking.event, {
     $inc: { availableSeats: -seatIds.length },
   });
 
-  // 7. Populate seats for the response so BookingConfirmation can render seat numbers
+  // 10. Populate seats for the response
   await booking.populate('seats', 'seatNumber section price');
 
-  // 8. Trigger background side-effects (email, etc.)
+  // 11. Trigger background side-effects (email, etc.)
   if (payment) {
     await paymentQueue.add(
       'PAYMENT_SUCCESS',
@@ -236,32 +223,23 @@ export const confirmBooking = async (req, res) => {
   res.status(200).json({ success: true, data: booking });
 };
 
-// ─── Check-in Ticket ─────────────────────────────────────────────────────────
-// POST /api/bookings/:id/check-in
-// Marks a ticket as scanned/used. Prevents multiple entry for the same ticket.
+// ─── Check-in Ticket ──────────────────────────────────────────────────────────
 export const checkIn = async (req, res) => {
   const booking = await Booking.findById(req.params.id).populate('event');
+  if (!booking) throw new AppError('Booking not found', 404);
 
-  if (!booking) {
-    throw new AppError('Booking not found', 404);
-  }
-
-  // 1. Verify that the booking is confirmed
   if (booking.status !== BOOKING_STATUS.CONFIRMED) {
     throw new AppError(`Cannot check in. Booking is in ${booking.status} status.`, 400);
   }
 
-  // 2. Security: Ensure the person checking in is the organiser or an admin
   if (booking.event.organiser.toString() !== req.user.id && req.user.role !== 'admin') {
     throw new AppError('Only the event organiser can check in tickets', 403);
   }
 
-  // 3. Prevent double entry
   if (booking.checkedIn) {
     throw new AppError(`Ticket already scanned at ${booking.checkedInAt.toLocaleTimeString()}`, 409);
   }
 
-  // 4. Perform check-in
   booking.checkedIn = true;
   booking.checkedInAt = new Date();
   await booking.save();
@@ -272,7 +250,7 @@ export const checkIn = async (req, res) => {
     data: {
       checkedInAt: booking.checkedInAt,
       event: booking.event.title,
-      user: booking.user
-    }
+      user: booking.user,
+    },
   });
 };
