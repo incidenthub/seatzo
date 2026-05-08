@@ -12,41 +12,18 @@ export const createPayment = async (req, res) => {
     userId: req.user.id,
     bookingId,
     amount,
-    idempotencyKey
+    idempotencyKey,
   });
 
-  res.status(201).json({
-    success: true,
-    data: result
-  });
+  res.status(201).json({ success: true, data: result });
 };
 
 export const getPaymentStatus = async (req, res) => {
-  const { id } = req.params;
-
-  const result = await paymentService.getPaymentStatus(
-    id,
-    req.user.id,
-    req.user.role
-  );
-
-  res.status(200).json({
-    success: true,
-    data: result
-  });
+  const result = await paymentService.getPaymentStatus(req.params.id, req.user.id, req.user.role);
+  res.status(200).json({ success: true, data: result });
 };
 
 export const processRefund = async (req, res) => {
-  const { id } = req.params;
-
-  const result = await paymentService.processRefund(
-    id,
-    req.user.id,
-    req.user.role
-  );
-
-  res.status(200).json({
-    success: true,
-    data: result
-  });
+  const result = await paymentService.processRefund(req.params.id, req.user.id, req.user.role);
+  res.status(200).json({ success: true, data: result });
 };

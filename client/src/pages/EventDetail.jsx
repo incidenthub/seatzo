@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/axios';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,8 @@ const STATUS_COLORS = {
   LOCKED_BY_ME: 'bg-rose-500 border-rose-400 cursor-pointer text-white shadow-[0_0_10px_rgba(248,68,100,0.4)]',
 };
 
+const POLL_MS = 3000;
+
 const EventDetail = () => {
   const { id } = useParams();
   const { user } = useAuth();
@@ -25,7 +27,14 @@ const EventDetail = () => {
   const [pricing, setPricing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locking, setLocking] = useState(false);
+
+  const selectedRef = useRef(selected);
   const pollRef = useRef(null);
+
+  // Keep ref in sync so the poll callback always sees latest selected
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+
+  const userId = user?._id?.toString();
 
   const fetchEvent = async () => {
     try {
@@ -36,15 +45,41 @@ const EventDetail = () => {
     }
   };
 
-  const fetchSeats = async () => {
+  // Core fetch — also reconciles selected seats against fresh server state
+  const fetchSeats = useCallback(async () => {
     try {
       const res = await api.get(`/seats/${id}`);
-      setSeats(res.data.seats);
+      const freshSeats = res.data.seats;
       setPricing(res.data.pricing);
+      setSeats(freshSeats);
+
+      // Build a fast lookup of fresh seat state
+      const freshMap = Object.fromEntries(freshSeats.map((s) => [s._id, s]));
+
+      // Find any currently-selected seats that have been taken by someone else
+      const stolen = selectedRef.current.filter((sel) => {
+        const live = freshMap[sel._id];
+        if (!live) return true; // seat disappeared
+        if (live.status === 'AVAILABLE') return false;
+        if (live.status === 'LOCKED' && live.lockedBy === userId) return false;
+        // LOCKED by someone else, BOOKED, DISABLED → stolen
+        return true;
+      });
+
+      if (stolen.length > 0) {
+        const names = stolen.map((s) => `Seat ${s.seatNumber}`).join(', ');
+        toast.error(`${names} ${stolen.length === 1 ? 'was' : 'were'} just taken — auto-removed from your selection.`, {
+          duration: 5000,
+          icon: '⚠️',
+        });
+        setSelected((prev) =>
+          prev.filter((sel) => !stolen.find((st) => st._id === sel._id))
+        );
+      }
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [id, userId]);
 
   useEffect(() => {
     const init = async () => {
@@ -54,13 +89,13 @@ const EventDetail = () => {
       setLoading(false);
     };
     init();
-    pollRef.current = setInterval(fetchSeats, 5000);
+    pollRef.current = setInterval(fetchSeats, POLL_MS);
     return () => clearInterval(pollRef.current);
   }, [id]);
 
   const handleSeatClick = (seat) => {
-    const lockedByMe = seat.status === 'LOCKED' && seat.lockedBy === user?._id?.toString();
-    if (seat.status !== 'AVAILABLE' && !lockedByMe) return;
+    const isLockedByMe = seat.status === 'LOCKED' && seat.lockedBy === userId;
+    if (seat.status !== 'AVAILABLE' && !isLockedByMe) return;
     if (selected.find((s) => s._id === seat._id)) {
       setSelected(selected.filter((s) => s._id !== seat._id));
     } else {
@@ -75,11 +110,35 @@ const EventDetail = () => {
     const idempotencyKey = uuidv4();
     setLocking(true);
     try {
-      await api.post('/seats/lock', { eventId: id, seatIds: selected.map((s) => s._id) }, { headers: { 'Idempotency-Key': idempotencyKey } });
-      toast.success('Seats locked for 5 minutes!');
-      navigate('/checkout', { state: { eventId: id, selectedSeats: selected, event, pricing, idempotencyKey } });
+      const res = await api.post('/seats/lock', {
+        eventId: id,
+        seatIds: selected.map((s) => s._id),
+      }, { headers: { 'Idempotency-Key': idempotencyKey } });
+
+      toast.success('Seats locked — you have 5 minutes to complete checkout!');
+      // Stop polling — Checkout owns the lock lifecycle from here
+      clearInterval(pollRef.current);
+      navigate('/checkout', {
+        state: {
+          eventId: id,
+          selectedSeats: selected,
+          event,
+          pricing,
+          idempotencyKey,
+          lockExpiresAt: res.data.expiresAt,
+        },
+      });
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to lock seats');
+      const msg = err.response?.data?.error || 'Failed to lock seats';
+      const failedSeat = err.response?.data?.failedSeat;
+      toast.error(msg);
+
+      // If a specific seat was reported as taken, deselect it immediately
+      if (failedSeat) {
+        setSelected((prev) => prev.filter((s) => s._id !== failedSeat));
+        // Refresh seat map so the UI reflects the conflict without waiting for next poll
+        fetchSeats();
+      }
     } finally {
       setLocking(false);
     }
@@ -113,19 +172,16 @@ const EventDetail = () => {
 
         {/* Hero Header */}
         <div className="relative overflow-hidden">
-          {/* Blurred bg */}
           <div className="absolute inset-0">
             <img src={event.posterUrl || "https://images.unsplash.com/photo-1514525253344-9914f25af042?auto=format&fit=crop&w=1200&q=60"} alt="" className="w-full h-full object-cover scale-110 blur-2xl opacity-20" />
             <div className="absolute inset-0 bg-gradient-to-b from-neutral-950/60 via-neutral-950/80 to-neutral-950" />
           </div>
 
           <div className="relative z-10 max-w-6xl mx-auto px-4 md:px-8 py-12 flex flex-col md:flex-row gap-8 items-start">
-            {/* Poster */}
             <div className="w-44 md:w-56 aspect-[2/3] rounded-2xl overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,0.6)] border border-white/10 shrink-0">
               <img src={event.posterUrl || "https://images.unsplash.com/photo-1514525253344-9914f25af042?auto=format&fit=crop&w=400&q=80"} alt={event.title} className="w-full h-full object-cover" />
             </div>
 
-            {/* Meta */}
             <div className="flex-1 pt-2">
               <span className="inline-block bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full mb-4">
                 {event.category}
@@ -140,20 +196,13 @@ const EventDetail = () => {
                 </span>
                 <span className="flex items-center gap-1.5 text-neutral-400 text-sm">
                   <svg className="w-3.5 h-3.5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                  {new Date(event.date).toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {new Date(event.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </span>
               </div>
-              <p className="text-neutral-400 text-sm leading-relaxed max-w-2xl mb-8">{event.description}</p>
-              <div className="flex gap-3">
-                <button className="flex items-center gap-2 bg-white/8 hover:bg-white/12 text-white px-5 py-2 rounded-xl font-semibold text-sm transition-all border border-white/8">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-                  Share
-                </button>
-                <button className="flex items-center gap-2 bg-white/8 hover:bg-white/12 text-white px-5 py-2 rounded-xl font-semibold text-sm transition-all border border-white/8">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  Watch Trailer
-                </button>
-              </div>
+              <button className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Watch Trailer
+              </button>
             </div>
           </div>
         </div>
@@ -163,7 +212,6 @@ const EventDetail = () => {
 
           {/* Seat Map */}
           <div className="flex-1 bg-gray-100/80 dark:bg-neutral-900/60 border border-gray-200 dark:border-white/5 rounded-2xl p-6 md:p-8">
-            {/* Stage */}
             <div className="mb-10 text-center">
               <div className="relative inline-block w-full max-w-xs mx-auto">
                 <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-rose-500/60 to-transparent rounded-full" />
@@ -191,8 +239,8 @@ const EventDetail = () => {
                             .sort((a, b) => (parseInt(a.replace(/[^\d]/g, '')) || 0) - (parseInt(b.replace(/[^\d]/g, '')) || 0))
                             .map(seatNo => {
                               const seat = seats.find(s => s.section === section && s.row === row && s.seatNumber === seatNo);
-                              const isSelected = selected.find(s => s._id === seat._id);
-                              const isLockedByMe = seat.status === 'LOCKED' && seat.lockedBy === user?._id?.toString();
+                              const isSelected = !!selected.find(s => s._id === seat._id);
+                              const isLockedByMe = seat.status === 'LOCKED' && seat.lockedBy === userId;
                               const status = isSelected || isLockedByMe ? 'SELECTED' : seat.status;
                               return (
                                 <button
@@ -219,6 +267,7 @@ const EventDetail = () => {
               {[
                 { label: 'Available', cls: 'bg-neutral-800 border-neutral-600' },
                 { label: 'Selected',  cls: 'bg-rose-500 border-rose-400' },
+                { label: 'Locked',    cls: 'bg-neutral-900 border-neutral-800' },
                 { label: 'Booked',    cls: 'bg-neutral-900 border-neutral-800 opacity-40' },
               ].map(l => (
                 <div key={l.label} className="flex items-center gap-2">

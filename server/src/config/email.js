@@ -28,7 +28,7 @@ export const sendOTPEmail = async (to, name, otp) => {
       html: `
       <div style="font-family:sans-serif;max-width:480px;margin:auto">
         <h2>Hi ${name},</h2>
-        <p>Use the OTP below to verify your email. It expires in <strong>10 minutes</strong>.</p>
+        <p>Use the OTP below to verify your email. It expires in <strong>5 minutes</strong>.</p>
         <div style="font-size:36px;font-weight:bold;letter-spacing:8px;
                     text-align:center;padding:24px;background:#f4f4f5;
                     border-radius:8px;margin:24px 0">
@@ -58,7 +58,7 @@ export const sendPasswordResetEmail = async (to, name, otp) => {
       html: `
       <div style="font-family:sans-serif;max-width:480px;margin:auto">
         <h2>Hi ${name},</h2>
-        <p>Use the OTP below to reset your password. It expires in <strong>10 minutes</strong>.</p>
+        <p>Use the OTP below to reset your password. It expires in <strong>5 minutes</strong>.</p>
         <div style="font-size:36px;font-weight:bold;letter-spacing:8px;
                     text-align:center;padding:24px;background:#f4f4f5;
                     border-radius:8px;margin:24px 0">
