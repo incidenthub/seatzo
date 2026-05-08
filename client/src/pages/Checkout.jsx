@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -6,7 +6,11 @@ import api from "../utils/axios";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 
-const stripePromise = loadStripe("pk_test_51THgvH9YIA9s0fO1sxZWdXJmqqDI3gX3FcuQBiVFz4RgSPMjR8ugjhe26Rv7BdTty1AIxuZJogqFk6rGxLJqH47800ZzJAvqqI");
+const LOCK_TTL = 300; // seconds — must match backend
+const RENEW_INTERVAL = 240; // renew at 4 min mark
+const POLL_INTERVAL = 4000; // seat state polling ms
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 const CARD_STYLE = {
   style: {
@@ -25,8 +29,8 @@ const SectionLabel = ({ children }) => (
   <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em] mb-4">{children}</p>
 );
 
-// ─── Inner form (must live inside <Elements>) ─────────────────────────────────
-const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPaymentSuccess }) => {
+// ─── Inner form ───────────────────────────────────────────────────────────────
+const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPaymentSuccess, onSeatsLost }) => {
   const stripe = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -35,7 +39,6 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPayme
 
   const formatPrice = (paise) => `₹${(Number(paise) / 100).toLocaleString("en-IN")}`;
 
-  // Use currentPrice (dynamic/surge) if available, fall back to base seat price
   const pricePerSeat = pricing?.price ?? selectedSeats[0]?.currentPrice ?? selectedSeats[0]?.price ?? 0;
   const seatTotal = pricePerSeat * selectedSeats.length;
   const fees = Math.round(seatTotal * 0.12);
@@ -72,18 +75,20 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPayme
           paymentIntentId: paymentIntent.id,
         });
 
-        // FIX: signal parent BEFORE navigate so cleanup useEffect sees
-        // paymentSucceeded.current = true and skips releasing the seats
         onPaymentSuccess();
-
-        toast.success("Payment successful! Booking confirmed 🎉");
+        toast.success("Payment successful! Booking confirmed");
         navigate("/booking-confirmation", {
           state: { booking: confirmRes.data.data, event },
           replace: true,
         });
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || "Payment failed. Please try again.");
+      const msg = err.response?.data?.error || "Payment failed. Please try again.";
+      toast.error(msg);
+      // If payment failed, release seats so user can retry from scratch
+      if (err.response?.status >= 400 && err.response?.status !== 402) {
+        onSeatsLost("Payment error — your seats have been released.");
+      }
     } finally {
       setLoading(false);
     }
@@ -91,12 +96,15 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPayme
 
   return (
     <form onSubmit={handlePay} className="space-y-4">
-      {/* Event */}
       <Card>
         <SectionLabel>Event Details</SectionLabel>
         <div className="flex gap-4 items-center">
           <div className="w-14 h-20 rounded-xl overflow-hidden shrink-0 border border-white/8">
-            <img src={event?.posterUrl || "https://images.unsplash.com/photo-1514525253344-9914f25af042?auto=format&fit=crop&w=400&q=80"} className="w-full h-full object-cover" alt={event?.title} />
+            <img
+              src={event?.posterUrl || "https://images.unsplash.com/photo-1514525253344-9914f25af042?auto=format&fit=crop&w=400&q=80"}
+              className="w-full h-full object-cover"
+              alt={event?.title}
+            />
           </div>
           <div>
             <p className="font-black text-gray-900 dark:text-white text-base leading-tight mb-1" style={{ fontFamily: "'Syne', sans-serif" }}>{event?.title}</p>
@@ -106,7 +114,6 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPayme
         </div>
       </Card>
 
-      {/* Seats */}
       <Card>
         <SectionLabel>Selected Seats ({selectedSeats.length})</SectionLabel>
         <div className="space-y-2">
@@ -129,7 +136,6 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPayme
         </div>
       </Card>
 
-      {/* Order Summary */}
       <Card>
         <SectionLabel>Order Summary</SectionLabel>
         <div className="space-y-3">
@@ -148,7 +154,6 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPayme
         </div>
       </Card>
 
-      {/* Payment */}
       <Card>
         <SectionLabel>Payment Details</SectionLabel>
         <div className="bg-gray-200/80 dark:bg-neutral-800/80 border border-gray-300 dark:border-white/8 hover:border-gray-400 dark:hover:border-white/15 focus-within:border-rose-500/50 rounded-xl p-4 mb-4 transition-colors">
@@ -190,7 +195,7 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPayme
   );
 };
 
-// ─── Outer wrapper ────────────────────────────────────────────────────────────
+// ─── Checkout wrapper ─────────────────────────────────────────────────────────
 const Checkout = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -198,62 +203,147 @@ const Checkout = () => {
 
   const [booking, setBooking] = useState(null);
   const [creatingBooking, setCreatingBooking] = useState(true);
-  const [countdown, setCountdown] = useState(300);
+  const [countdown, setCountdown] = useState(LOCK_TTL);
+  const [seatsLost, setSeatsLost] = useState(false);
 
-  // Set to true right before navigating on successful payment.
-  // Both the unmount cleanup and the beforeunload handler check this
-  // so they skip releasing seats when checkout completes normally.
   const paymentSucceeded = useRef(false);
+  const releasedRef = useRef(false);
+  const renewTimerRef = useRef(null);
+  const pollTimerRef = useRef(null);
+  const countdownRef = useRef(null);
 
+  // ── Idempotent release helper ────────────────────────────────────────────
+  const releaseSeats = useCallback(async () => {
+    if (releasedRef.current || !eventId) return;
+    releasedRef.current = true;
+    try { await api.post("/seats/release-all", { eventId }); } catch { /* TTL handles it */ }
+  }, [eventId]);
+
+  // ── Seat-loss handler ────────────────────────────────────────────────────
+  const handleSeatsLost = useCallback((reason) => {
+    if (paymentSucceeded.current) return;
+    setSeatsLost(true);
+    toast.error(reason || "Your seat reservation has expired.");
+    clearTimers();
+    // Navigate back after short delay so toast is readable
+    setTimeout(() => navigate(-1), 2500);
+  }, [navigate]);
+
+  const clearTimers = () => {
+    clearInterval(countdownRef.current);
+    clearInterval(renewTimerRef.current);
+    clearInterval(pollTimerRef.current);
+  };
+
+  // ── On mount: guard multi-tab (BroadcastChannel) ─────────────────────────
   useEffect(() => {
     if (!eventId || !selectedSeats?.length) { navigate("/events"); return; }
+
+    // Prevent same user from opening multiple checkout tabs for same event
+    const channel = new BroadcastChannel(`checkout:${eventId}`);
+    channel.postMessage({ type: "CHECKOUT_OPEN" });
+    channel.onmessage = (e) => {
+      if (e.data?.type === "CHECKOUT_OPEN") {
+        toast.error("Checkout is already open in another tab.");
+        channel.close();
+        navigate(-1);
+      }
+    };
+
     createBooking();
+
+    return () => channel.close();
   }, []);
 
-  // Countdown timer — auto-release and redirect when it hits 0
+  // ── Countdown + lock renewal + seat polling ───────────────────────────────
   useEffect(() => {
-    if (creatingBooking) return;
-    const timer = setInterval(() => {
+    if (creatingBooking || seatsLost) return;
+
+    // Countdown
+    setCountdown(LOCK_TTL);
+    countdownRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
-          releaseSeats().then(() => {
-            toast.error("Session expired. Please re-select your seats.");
-            navigate(-1);
-          });
+          clearTimers();
+          releaseSeats().then(() => handleSeatsLost("Session expired. Please re-select your seats."));
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(timer);
-  }, [creatingBooking]);
 
-  // Release seats when user exits checkout without paying:
-  // • beforeunload  — tab close / browser refresh / hard navigation
-  // • unmount       — in-app back button / React navigation
-  // Both are skipped if payment already succeeded.
+    // Proactive lock renewal before TTL expires
+    renewTimerRef.current = setInterval(async () => {
+      if (paymentSucceeded.current) return;
+      try {
+        await api.post("/seats/renew", {
+          eventId,
+          seatIds: selectedSeats.map((s) => s._id),
+        });
+        setCountdown(LOCK_TTL);
+      } catch (err) {
+        if (err.response?.status === 409) {
+          handleSeatsLost("One or more of your seats were taken. Please re-select.");
+        }
+      }
+    }, RENEW_INTERVAL * 1000);
+
+    // Poll seat state to detect if locks were stolen (e.g. Redis flush / admin override)
+    pollTimerRef.current = setInterval(async () => {
+      if (paymentSucceeded.current) return;
+      try {
+        const { data } = await api.get(`/seats/${eventId}`);
+        const seatMap = Object.fromEntries(data.seats.map((s) => [s._id, s]));
+        const userId = booking?.user;
+        const lostSeat = selectedSeats.find((s) => {
+          const live = seatMap[s._id];
+          return !live || (live.status !== "LOCKED") || (live.lockedBy && live.lockedBy !== userId);
+        });
+        if (lostSeat) {
+          handleSeatsLost(`Seat ${lostSeat.seatNumber} was taken. Please re-select.`);
+        }
+      } catch { /* non-fatal polling failure */ }
+    }, POLL_INTERVAL);
+
+    return clearTimers;
+  }, [creatingBooking, seatsLost]);
+
+  // ── Unload / unmount cleanup ──────────────────────────────────────────────
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (paymentSucceeded.current || !eventId) return;
-      // sendBeacon survives page unload; regular fetch/axios does not
-      const payload = JSON.stringify({ eventId });
-      api.post("/seats/release-all", { eventId });
+      navigator.sendBeacon(
+        `${import.meta.env.VITE_API_BASE_URL}/seats/release-all`,
+        new Blob([JSON.stringify({ eventId })], { type: "application/json" })
+      );
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      if (!paymentSucceeded.current) {
-        releaseSeats();
+      if (!paymentSucceeded.current) releaseSeats();
+    };
+  }, [eventId, releaseSeats]);
+
+  // ── Visibility change — re-verify locks when tab regains focus ────────────
+  useEffect(() => {
+    const handleVisibility = async () => {
+      if (document.visibilityState !== "visible" || paymentSucceeded.current || creatingBooking) return;
+      try {
+        const res = await api.post("/seats/renew", {
+          eventId,
+          seatIds: selectedSeats.map((s) => s._id),
+        });
+        setCountdown(LOCK_TTL);
+      } catch (err) {
+        if (err.response?.status === 409) {
+          handleSeatsLost("Your seat reservation expired while away. Please re-select.");
+        }
       }
     };
-  }, [eventId]);
-
-  const releaseSeats = async () => {
-    if (!eventId) return;
-    try { await api.post("/seats/release-all", { eventId }); } catch { /* TTL handles it */ }
-  };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [creatingBooking, eventId, selectedSeats, handleSeatsLost]);
 
   const createBooking = async () => {
     try {
@@ -278,6 +368,14 @@ const Checkout = () => {
     </div>
   );
 
+  if (seatsLost) return (
+    <div className="min-h-screen bg-white dark:bg-neutral-950 flex flex-col items-center justify-center gap-4 px-4">
+      <div className="text-4xl">⏰</div>
+      <p className="text-white font-bold text-lg text-center">Reservation expired</p>
+      <p className="text-neutral-500 text-sm text-center">Redirecting you back to seat selection…</p>
+    </div>
+  );
+
   const isUrgent = countdown < 60;
 
   return (
@@ -289,7 +387,6 @@ const Checkout = () => {
       `}</style>
       <div className="min-h-screen bg-white dark:bg-neutral-950 py-10 px-4">
         <div className="max-w-lg mx-auto">
-          {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
               <p className="text-rose-400 text-[10px] font-black uppercase tracking-[0.25em] mb-1">Almost there</p>
@@ -305,7 +402,6 @@ const Checkout = () => {
             </div>
           </div>
 
-          {/* Progress steps */}
           <div className="flex items-center gap-2 mb-8">
             {["Seats", "Details", "Pay"].map((step, i) => (
               <div key={step} className="flex items-center gap-2 flex-1 last:flex-none">
@@ -325,7 +421,8 @@ const Checkout = () => {
               selectedSeats={selectedSeats}
               pricing={pricing}
               eventId={eventId}
-              onPaymentSuccess={() => { paymentSucceeded.current = true; }}
+              onPaymentSuccess={() => { paymentSucceeded.current = true; clearTimers(); }}
+              onSeatsLost={handleSeatsLost}
             />
           </Elements>
         </div>

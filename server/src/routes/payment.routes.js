@@ -5,7 +5,6 @@ import asyncHandler from '../utils/asyncHandler.js';
 
 const router = Router();
 
-// Protect ALL payment routes — user must be logged in
 router.use(protect);
 
 router.post('/create', asyncHandler(createPayment));
