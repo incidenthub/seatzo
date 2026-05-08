@@ -10,7 +10,8 @@ const LOCK_TTL = 300; // seconds — must match backend
 const RENEW_INTERVAL = 240; // renew at 4 min mark
 const POLL_INTERVAL = 4000; // seat state polling ms
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_51THgvH9YIA9s0fO1sxZWdXJmqqDI3gX3FcuQBiVFz4RgSPMjR8ugjhe26Rv7BdTty1AIxuZJogqFk6rGxLJqH47800ZzJAvqqI";
+const stripePromise = loadStripe(STRIPE_KEY);
 
 const CARD_STYLE = {
   style: {
