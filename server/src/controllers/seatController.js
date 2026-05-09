@@ -64,7 +64,7 @@ export const releaseAllLocks = async (req, res) => {
     const result = await releaseAllUserLocks(eventId, userId);
     res.json({ message: `Released ${result.released} seat(s)`, released: result.released });
   } catch (err) {
-    console.error('[releaseAllLocks]', err);
+    console.error('[releaseAllLocks]', err?.message, err?.code, err?.stack);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

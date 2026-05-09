@@ -21,18 +21,22 @@ const EventDetail = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [event, setEvent] = useState(null);
-  const [seats, setSeats] = useState([]);
+  const [event, setEvent]     = useState(null);
+  const [seats, setSeats]     = useState([]);
   const [selected, setSelected] = useState([]);
   const [pricing, setPricing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locking, setLocking] = useState(false);
 
-  const selectedRef = useRef(selected);
-  const pollRef = useRef(null);
+  const selectedRef  = useRef([]);
+  const pollRef      = useRef(null);
+  const lockingRef   = useRef(false); // true while lock API call is in-flight
+  const unmountedRef = useRef(false);
 
-  // Keep ref in sync so the poll callback always sees latest selected
+  // Keep refs in sync
   useEffect(() => { selectedRef.current = selected; }, [selected]);
+  useEffect(() => { lockingRef.current  = locking;  }, [locking]);
+  useEffect(() => () => { unmountedRef.current = true; }, []);
 
   const userId = user?._id?.toString();
 
@@ -45,24 +49,27 @@ const EventDetail = () => {
     }
   };
 
-  // Core fetch — also reconciles selected seats against fresh server state
-  const fetchSeats = useCallback(async () => {
+const fetchSeats = useCallback(async () => {
     try {
-      const res = await api.get(`/seats/${id}`);
+      const res = await api.get(`/events/${id}/seats`);
       const freshSeats = res.data.seats;
+
       setPricing(res.data.pricing);
       setSeats(freshSeats);
 
-      // Build a fast lookup of fresh seat state
+      // Skip stolen-seat check while a lock request is in flight —
+      // the seat will appear LOCKED by us in Redis but the UI hasn't
+      // navigated yet, causing a false positive.
+      if (lockingRef.current) return;
+
       const freshMap = Object.fromEntries(freshSeats.map((s) => [s._id, s]));
 
-      // Find any currently-selected seats that have been taken by someone else
       const stolen = selectedRef.current.filter((sel) => {
         const live = freshMap[sel._id];
-        if (!live) return true; // seat disappeared
+        if (!live) return true;
         if (live.status === 'AVAILABLE') return false;
-        if (live.status === 'LOCKED' && live.lockedBy === userId) return false;
-        // LOCKED by someone else, BOOKED, DISABLED → stolen
+        // normalise both sides — Redis stores plain strings, user._id may be ObjectId
+        if (live.status === 'LOCKED' && live.lockedBy?.toString() === userId) return false;
         return true;
       });
 
@@ -72,12 +79,10 @@ const EventDetail = () => {
           duration: 5000,
           icon: '⚠️',
         });
-        setSelected((prev) =>
-          prev.filter((sel) => !stolen.find((st) => st._id === sel._id))
-        );
+        setSelected((prev) => prev.filter((sel) => !stolen.find((st) => st._id === sel._id)));
       }
     } catch (err) {
-      console.error(err);
+      console.error('[fetchSeats]', err);
     }
   }, [id, userId]);
 
@@ -90,11 +95,14 @@ const EventDetail = () => {
     };
     init();
     pollRef.current = setInterval(fetchSeats, POLL_MS);
-    return () => clearInterval(pollRef.current);
+    return () => {
+      unmountedRef.current = true;
+      clearInterval(pollRef.current);
+    };
   }, [id]);
 
   const handleSeatClick = (seat) => {
-    const isLockedByMe = seat.status === 'LOCKED' && seat.lockedBy === userId;
+    const isLockedByMe = seat.status === 'LOCKED' && seat.lockedBy?.toString() === userId;
     if (seat.status !== 'AVAILABLE' && !isLockedByMe) return;
     if (selected.find((s) => s._id === seat._id)) {
       setSelected(selected.filter((s) => s._id !== seat._id));
@@ -107,8 +115,13 @@ const EventDetail = () => {
   const handleLock = async () => {
     if (!user) { toast.error('Please login first'); navigate('/login'); return; }
     if (selected.length === 0) { toast.error('Select at least one seat'); return; }
+
     const idempotencyKey = uuidv4();
     setLocking(true);
+    // Pause poll immediately — prevents false "seat taken" toasts while
+    // the lock request is in flight and Redis already shows the seat as ours
+    clearInterval(pollRef.current);
+
     try {
       const res = await api.post('/seats/lock', {
         eventId: id,
@@ -116,8 +129,7 @@ const EventDetail = () => {
       }, { headers: { 'Idempotency-Key': idempotencyKey } });
 
       toast.success('Seats locked — you have 5 minutes to complete checkout!');
-      // Stop polling — Checkout owns the lock lifecycle from here
-      clearInterval(pollRef.current);
+      // Poll stays stopped — Checkout owns the lock lifecycle from here
       navigate('/checkout', {
         state: {
           eventId: id,
@@ -133,15 +145,18 @@ const EventDetail = () => {
       const failedSeat = err.response?.data?.failedSeat;
       toast.error(msg);
 
-      // If a specific seat was reported as taken, deselect it immediately
       if (failedSeat) {
         setSelected((prev) => prev.filter((s) => s._id !== failedSeat));
-        // Refresh seat map so the UI reflects the conflict without waiting for next poll
-        fetchSeats();
       }
-    } finally {
+
+      // Restart poll now that the lock attempt is done
       setLocking(false);
+      await fetchSeats();
+      pollRef.current = setInterval(fetchSeats, POLL_MS);
+      return; // skip finally setLocking(false) — already done
     }
+
+    setLocking(false);
   };
 
   if (loading || !event) return (
@@ -239,8 +254,8 @@ const EventDetail = () => {
                             .sort((a, b) => (parseInt(a.replace(/[^\d]/g, '')) || 0) - (parseInt(b.replace(/[^\d]/g, '')) || 0))
                             .map(seatNo => {
                               const seat = seats.find(s => s.section === section && s.row === row && s.seatNumber === seatNo);
-                              const isSelected = !!selected.find(s => s._id === seat._id);
-                              const isLockedByMe = seat.status === 'LOCKED' && seat.lockedBy === userId;
+                              const isSelected   = !!selected.find(s => s._id === seat._id);
+                              const isLockedByMe = seat.status === 'LOCKED' && seat.lockedBy?.toString() === userId;
                               const status = isSelected || isLockedByMe ? 'SELECTED' : seat.status;
                               return (
                                 <button
