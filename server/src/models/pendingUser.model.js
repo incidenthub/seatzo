@@ -31,6 +31,18 @@ const pendingUserSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    idCardFront: {
+      type: String,
+      default: null,
+    },
+    idCardBack: {
+      type: String,
+      default: null,
+    },
+    organiserStatus: {
+      type: String,
+      default: "pending",
+    },
     createdAt: {
       type: Date,
       default: Date.now,

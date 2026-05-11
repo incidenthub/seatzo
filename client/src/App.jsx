@@ -28,6 +28,13 @@ import CreateEvent from "./pages/organiser/CreateEvent";
 import EditEvent from "./pages/organiser/EditEvent";
 import EventAnalytics from "./pages/organiser/EventAnalytics";
 
+// Admin
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import VerifyOrganisers from "./pages/admin/VerifyOrganisers";
+import ManageUsers from "./pages/admin/ManageUsers";
+import ManageEvents from "./pages/admin/ManageEvents";
+
 const App = () => {
   return (
     <ThemeProvider>
@@ -67,6 +74,16 @@ const App = () => {
                 path="/organiser/events/:id/analytics"
                 element={<EventAnalytics />}
               />
+            </Route>
+          </Route>
+
+          {/* ── Admin pages — own layout ── */}
+          <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/verify-organisers" element={<VerifyOrganisers />} />
+              <Route path="/admin/users" element={<ManageUsers />} />
+              <Route path="/admin/events" element={<ManageEvents />} />
             </Route>
           </Route>
 

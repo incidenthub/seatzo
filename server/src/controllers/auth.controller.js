@@ -55,12 +55,17 @@ export const register = async (req, res) => {
     // Overwrite any existing pending registration for this email
     await PendingUser.deleteMany({ email });
 
+    const idCardFront = req.files?.["idCardFront"]?.[0]?.path || null;
+    const idCardBack = req.files?.["idCardBack"]?.[0]?.path || null;
+
     await PendingUser.create({
       name,
       email,
       password,
       role: assignedRole,
       otp,
+      idCardFront,
+      idCardBack,
     });
 
     await sendOTPEmail(email, name, otp);
@@ -105,6 +110,9 @@ export const verifyEmail = async (req, res) => {
       email: pendingUser.email,
       password: pendingUser.password, // Pre-save hook will hash it now
       role: pendingUser.role,
+      idCardFront: pendingUser.idCardFront,
+      idCardBack: pendingUser.idCardBack,
+      organiserStatus: pendingUser.organiserStatus,
       isVerified: true,
     });
 
@@ -140,6 +148,12 @@ export const login = async (req, res) => {
 
     // Email verification check removed as requested
 
+    // ID Verification check for organisers
+    if (user.role === "organiser" && user.organiserStatus !== "verified") {
+      return res.status(403).json({
+        error: "Your account is pending ID verification. You will be notified once approved.",
+      });
+    }
 
     const accessToken = signAccessToken(user._id);
     const refreshToken = signRefreshToken(user._id);

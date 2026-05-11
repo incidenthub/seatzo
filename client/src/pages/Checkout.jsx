@@ -15,7 +15,7 @@ const stripePromise = loadStripe(STRIPE_KEY);
 
 const CARD_STYLE = {
   style: {
-    base: { color: "#ffffff", fontFamily: "'DM Sans', sans-serif", fontSize: "15px", fontSmoothing: "antialiased", "::placeholder": { color: "#525252" } },
+    base: { color: "#e5e5e5", fontFamily: "'DM Sans', sans-serif", fontSize: "15px", fontSmoothing: "antialiased", "::placeholder": { color: "#737373" } },
     invalid: { color: "#f87171", iconColor: "#f87171" },
   },
 };
@@ -155,7 +155,7 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPayme
 
       <Card>
         <SectionLabel>Payment Details</SectionLabel>
-        <div className="bg-gray-200/80 dark:bg-neutral-800/80 border border-gray-300 dark:border-white/8 hover:border-gray-400 dark:hover:border-white/15 focus-within:border-rose-500/50 rounded-xl p-4 mb-4 transition-colors">
+        <div className="bg-neutral-800 border border-neutral-700 hover:border-neutral-600 focus-within:border-rose-500/50 rounded-xl p-4 mb-4 transition-colors">
           <CardElement options={CARD_STYLE} />
         </div>
         {cardError && (

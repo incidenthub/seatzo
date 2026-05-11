@@ -51,6 +51,9 @@ app.use(cookieParser());
 // 6. HTTP request logging
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
+// 7. Static files
+app.use('/uploads', express.static('uploads'));
+
 // ─── Health Check ──────────────────────────────────────────────────────────
 app.get('/', (_req, res) => {
   res.json({ success: true, message: 'TicketFlow API running' });

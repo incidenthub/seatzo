@@ -200,3 +200,39 @@ export const sendBookingConfirmation = async (to, name, data) => {
     throw err;
   }
 };
+
+// ─── Organiser Approval Email ────────────────────────────────────────────────
+export const sendOrganiserApprovalEmail = async (to, name) => {
+  try {
+    await transporter.sendMail({
+      from: `"Seatzo Team" <${env.email.fromEmail}>`,
+      to,
+      subject: "Your Seatzo Organiser Account is Approved! 🚀",
+      html: `
+      <div style="font-family:sans-serif;max-width:500px;margin:auto;padding:40px;background:#ffffff;border-radius:24px;border:1px solid #f1f5f9">
+        <h2 style="color:#1e293b;font-size:24px;font-weight:900;margin-bottom:16px">Welcome to the Stage, ${name}!</h2>
+        <p style="color:#64748b;font-size:15px;line-height:1.6;margin-bottom:24px">
+          Great news! Our team has reviewed your ID verification documents and your account has been <strong>fully approved</strong>.
+        </p>
+        <div style="background:#f8fafc;padding:24px;border-radius:16px;margin-bottom:24px">
+          <p style="margin:0 0 12px;font-size:14px;color:#1e293b"><strong>What's next?</strong></p>
+          <ul style="margin:0;padding-left:20px;color:#64748b;font-size:14px;line-height:1.8">
+            <li>Log in to your Organiser Dashboard</li>
+            <li>Create your first event draft</li>
+            <li>Submit for publishing and start selling tickets!</li>
+          </ul>
+        </div>
+        <div style="text-align:center">
+          <a href="${env.appUrl}/login" style="display:inline-block;background:#f84464;color:#ffffff;padding:16px 32px;border-radius:12px;text-decoration:none;font-weight:700;font-size:15px">Log In Now</a>
+        </div>
+        <p style="margin-top:32px;color:#94a3b8;font-size:12px;text-align:center">
+          Happy hosting!<br/>&copy; 2026 Seatzo
+        </p>
+      </div>
+    `,
+    });
+    console.log(`[Email] Approval notification sent to ${to}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send approval to ${to}:`, err.message);
+  }
+};

@@ -51,6 +51,22 @@ const userSchema = new mongoose.Schema(
     otpExpiresAt: {
       type: Date,
     },
+
+    idCardFront: {
+      type: String,
+      default: null,
+    },
+
+    idCardBack: {
+      type: String,
+      default: null,
+    },
+
+    organiserStatus: {
+      type: String,
+      enum: ["pending", "verified", "rejected"],
+      default: "pending",
+    },
   },
   {
     timestamps: true,

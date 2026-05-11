@@ -11,10 +11,19 @@ import {
 } from "../controllers/auth.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 
+import { upload } from "../middleware/upload.middleware.js";
+
 const router = Router();
 
 // Public routes
-router.post("/register", register);
+router.post(
+  "/register",
+  upload.fields([
+    { name: "idCardFront", maxCount: 1 },
+    { name: "idCardBack", maxCount: 1 },
+  ]),
+  register
+);
 router.post("/verify-email", verifyEmail);
 router.post("/resend-otp", resendOTP);
 router.post("/login", login);
