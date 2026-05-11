@@ -16,6 +16,10 @@ import EventDetail from "./pages/EventDetail";
 import Checkout from "./pages/Checkout";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import UserDashboard from "./pages/UserDashboard";
+import Help from "./pages/Help";
+import Contact from "./pages/Contact";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 
 // Organiser
 import OrganiserLayout from "./pages/organiser/OrganiserLayout";
@@ -111,6 +115,10 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="/help" element={<Help />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
           </Route>
         </Routes>
       </AuthProvider>
