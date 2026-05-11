@@ -101,6 +101,7 @@ export const getEvents = async (req, res) => {
       sort,
       page = 1,
       limit = 20,
+      search,
     } = req.query;
 
     // Only return published events to the public
@@ -108,6 +109,15 @@ export const getEvents = async (req, res) => {
 
     if (city) filter.city = city.toLowerCase().trim();
     if (category) filter.category = category;
+
+    if (search) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      filter.$or = [
+        { title: searchRegex },
+        { city: searchRegex },
+        { venue: searchRegex },
+      ];
+    }
 
     if (date) {
       const dayStart = new Date(date);

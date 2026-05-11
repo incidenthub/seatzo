@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../utils/axios';
 
 const CATEGORIES = ['all', 'movie', 'music', 'concert', 'sports', 'theatre', 'standup', 'conference'];
@@ -11,15 +11,30 @@ const Skeleton = ({ className = "" }) => (
 );
 
 const EventListings = () => {
+  const [searchParams] = useSearchParams();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ city: '', category: 'all', sort: 'date' });
+  const [filters, setFilters] = useState({ 
+    search: searchParams.get('search') || '', 
+    city: searchParams.get('city') || '', 
+    category: 'all', 
+    sort: 'date' 
+  });
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+
+  useEffect(() => {
+    setFilters(f => ({
+      ...f,
+      search: searchParams.get('search') || '',
+      city: searchParams.get('city') || '',
+    }));
+  }, [searchParams]);
 
   const fetchEvents = async (page = 1) => {
     setLoading(true);
     try {
       const params = { page, limit: 12, sort: filters.sort };
+      if (filters.search) params.search = filters.search;
       if (filters.city) params.city = filters.city;
       if (filters.category !== 'all') params.category = filters.category;
       const res = await api.get('/events', { params });
@@ -60,12 +75,12 @@ const EventListings = () => {
           {/* Filters */}
           <div className="flex flex-wrap gap-3 items-center mb-10 bg-gray-100/80 dark:bg-neutral-900/60 border border-gray-200 dark:border-white/5 backdrop-blur-sm p-4 rounded-2xl">
 
-            {/* City search */}
+            {/* Search */}
             <div className="relative group">
               <input
-                value={filters.city}
-                onChange={(e) => setFilters({ ...filters, city: e.target.value })}
-                placeholder="Search by city…"
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value, city: '' })}
+                placeholder="Search events, cities…"
                 className="bg-white dark:bg-white/5 border border-gray-300 dark:border-white/8 hover:border-gray-400 dark:hover:border-white/15 focus:border-rose-500/50 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:bg-gray-50 dark:focus:bg-white/8 transition-all duration-200 w-52"
               />
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 group-focus-within:text-rose-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
