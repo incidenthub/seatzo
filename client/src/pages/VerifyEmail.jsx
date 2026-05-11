@@ -24,7 +24,11 @@ const VerifyEmail = () => {
     setLoading(true);
     try {
       await api.post('/auth/verify-email', { email, otp });
-      toast.success('Email verified! Please log in.');
+      if (location.state?.role === 'organiser') {
+        toast.success('Email verified! Your account is now pending admin approval.');
+      } else {
+        toast.success('Email verified! Please log in.');
+      }
       navigate('/login');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Invalid OTP');

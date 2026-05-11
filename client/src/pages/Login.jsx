@@ -14,7 +14,7 @@ const Login = () => {
       if (user.role === "organiser") {
         navigate("/organiser/events");
       } else if (user.role === "admin") {
-        navigate("/admin/events");
+        navigate("/admin/dashboard");
       } else {
         navigate("/");
       }
@@ -32,6 +32,8 @@ const Login = () => {
       toast.success(`Welcome back, ${user.name}!`);
       if (user.role === "organiser") {
         navigate("/organiser/events");
+      } else if (user.role === "admin") {
+        navigate("/admin/dashboard");
       } else {
         navigate("/");
       }

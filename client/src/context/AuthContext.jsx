@@ -25,13 +25,23 @@ export const AuthProvider = ({ children }) => {
     return user;
   };
 
-  const register = async (name, email, password, role = "customer") => {
-    const res = await api.post("/auth/register", {
-      name,
-      email,
-      password,
-      role,
-    });
+  const register = async (nameOrFormData, email, password, role = "customer") => {
+    let payload;
+    let headers = {};
+
+    if (nameOrFormData instanceof FormData) {
+      payload = nameOrFormData;
+      headers = { "Content-Type": "multipart/form-data" };
+    } else {
+      payload = {
+        name: nameOrFormData,
+        email,
+        password,
+        role,
+      };
+    }
+
+    const res = await api.post("/auth/register", payload, { headers });
     return res.data;
   };
 
