@@ -1,8 +1,10 @@
+import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import toast from "react-hot-toast";
 import Logo from "../components/Logo"
+import api from "../utils/axios";
 
 const SunIcon = () => (
   <svg
@@ -43,6 +45,57 @@ const Navbar = () => {
   const { user, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const fetchSuggestions = async (query) => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    try {
+      const res = await api.get("/events", { params: { search: query.trim(), limit: 5 } });
+      setSuggestions(res.data.events || []);
+    } catch (err) {
+      setSuggestions([]);
+    }
+  };
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearch(value);
+    setShowDropdown(true);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(value), 300);
+  };
+
+  const handleSuggestionClick = (eventId) => {
+    setShowDropdown(false);
+    setSearch("");
+    navigate(`/events/${eventId}`);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (search.trim()) {
+      setShowDropdown(false);
+      navigate(`/events?search=${encodeURIComponent(search.trim())}`);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -60,10 +113,13 @@ const Navbar = () => {
 </Link>
 
         {/* Search */}
-        <div className="flex-1 max-w-lg hidden md:block">
-          <div className="relative group">
+        <div className="flex-1 max-w-lg hidden md:block" ref={searchRef}>
+          <form onSubmit={handleSearch} className="relative group">
             <input
               type="text"
+              value={search}
+              onChange={handleSearchChange}
+              onFocus={() => setShowDropdown(true)}
               placeholder="Search movies, events, plays, sports…"
               className="w-full bg-zinc-100 dark:bg-white/[0.05] border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-rose-500/70 dark:focus:border-rose-500/50 rounded-xl px-10 py-2 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:bg-white dark:focus:bg-white/[0.08] transition-all duration-200"
             />
@@ -81,7 +137,37 @@ const Navbar = () => {
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-          </div>
+            </form>
+
+            {/* Suggestions Dropdown */}
+            {showDropdown && suggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-neutral-900 border border-zinc-200 dark:border-white/10 rounded-xl shadow-xl overflow-hidden z-50">
+                {suggestions.map((event) => (
+                  <button
+                    key={event._id}
+                    onClick={() => handleSuggestionClick(event._id)}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors text-left"
+                  >
+                    {event.posterUrl ? (
+                      <img src={event.posterUrl} alt="" className="w-10 h-12 object-cover rounded-lg" />
+                    ) : (
+                      <div className="w-10 h-12 bg-zinc-100 dark:bg-white/10 rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-neutral-900 dark:text-white truncate">{event.title}</p>
+                      <p className="text-xs text-neutral-500 truncate">{event.venue}, {event.city}</p>
+                    </div>
+                    <span className="text-[10px] font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded-full capitalize">
+                      {event.category}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
         </div>
 
         {/* Right Side */}
