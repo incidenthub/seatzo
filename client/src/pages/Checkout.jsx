@@ -6,11 +6,12 @@ import api from "../utils/axios";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 
-const LOCK_TTL = 300; // seconds — must match backend
-const RENEW_INTERVAL = 240; // renew at 4 min mark
-const POLL_INTERVAL = 4000; // seat state polling ms
+const LOCK_TTL = 300;
+const RENEW_INTERVAL = 240;
+const POLL_INTERVAL = 4000;
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_51THgvH9YIA9s0fO1sxZWdXJmqqDI3gX3FcuQBiVFz4RgSPMjR8ugjhe26Rv7BdTty1AIxuZJogqFk6rGxLJqH47800ZzJAvqqI";
+const stripePromise = loadStripe(STRIPE_KEY);
 
 const CARD_STYLE = {
   style: {
@@ -29,20 +30,20 @@ const SectionLabel = ({ children }) => (
   <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em] mb-4">{children}</p>
 );
 
-// ─── Inner form ───────────────────────────────────────────────────────────────
+// ─── Inner payment form ───────────────────────────────────────────────────────
 const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPaymentSuccess, onSeatsLost }) => {
-  const stripe = useStripe();
+  const stripe   = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]     = useState(false);
   const [cardError, setCardError] = useState("");
 
   const formatPrice = (paise) => `₹${(Number(paise) / 100).toLocaleString("en-IN")}`;
 
-  const pricePerSeat = pricing?.price ?? selectedSeats[0]?.currentPrice ?? selectedSeats[0]?.price ?? 0;
-  const seatTotal = pricePerSeat * selectedSeats.length;
-  const fees = Math.round(seatTotal * 0.12);
-  const grandTotal = seatTotal + fees;
+  const pricePerSeat     = pricing?.price ?? selectedSeats[0]?.currentPrice ?? selectedSeats[0]?.price ?? 0;
+  const seatTotal        = pricePerSeat * selectedSeats.length;
+  const fees             = Math.round(seatTotal * 0.12);
+  const grandTotal       = seatTotal + fees;
   const grandTotalInPaise = Math.round(grandTotal);
 
   const handlePay = async (e) => {
@@ -74,7 +75,6 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPayme
         const confirmRes = await api.post(`/bookings/${booking._id}/confirm`, {
           paymentIntentId: paymentIntent.id,
         });
-
         onPaymentSuccess();
         toast.success("Payment successful! Booking confirmed");
         navigate("/booking-confirmation", {
@@ -85,7 +85,6 @@ const CheckoutForm = ({ booking, event, selectedSeats, pricing, eventId, onPayme
     } catch (err) {
       const msg = err.response?.data?.error || "Payment failed. Please try again.";
       toast.error(msg);
-      // If payment failed, release seats so user can retry from scratch
       if (err.response?.status >= 400 && err.response?.status !== 402) {
         onSeatsLost("Payment error — your seats have been released.");
       }
@@ -201,22 +200,30 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { eventId, event, selectedSeats, pricing, idempotencyKey: stateIdempotencyKey } = location.state || {};
 
-  const [booking, setBooking] = useState(null);
+  const [booking, setBooking]             = useState(null);
   const [creatingBooking, setCreatingBooking] = useState(true);
-  const [countdown, setCountdown] = useState(LOCK_TTL);
-  const [seatsLost, setSeatsLost] = useState(false);
+  const [countdown, setCountdown]         = useState(LOCK_TTL);
+  const [seatsLost, setSeatsLost]         = useState(false);
 
   const paymentSucceeded = useRef(false);
-  const releasedRef = useRef(false);
-  const renewTimerRef = useRef(null);
-  const pollTimerRef = useRef(null);
-  const countdownRef = useRef(null);
+  const releasedRef      = useRef(false);
+  const renewTimerRef    = useRef(null);
+  const pollTimerRef     = useRef(null);
+  const countdownRef     = useRef(null);
+  // Store booking in a ref too so the poll closure always sees the latest value
+  const bookingRef       = useRef(null);
 
-  // ── Idempotent release helper ────────────────────────────────────────────
+  const clearTimers = useCallback(() => {
+    clearInterval(countdownRef.current);
+    clearInterval(renewTimerRef.current);
+    clearInterval(pollTimerRef.current);
+  }, []);
+
+  // ── Idempotent release ───────────────────────────────────────────────────
   const releaseSeats = useCallback(async () => {
     if (releasedRef.current || !eventId) return;
     releasedRef.current = true;
-    try { await api.post("/seats/release-all", { eventId }); } catch { /* TTL handles it */ }
+    try { await api.post("/seats/release-all", { eventId }); } catch { /* TTL cleans up */ }
   }, [eventId]);
 
   // ── Seat-loss handler ────────────────────────────────────────────────────
@@ -225,21 +232,13 @@ const Checkout = () => {
     setSeatsLost(true);
     toast.error(reason || "Your seat reservation has expired.");
     clearTimers();
-    // Navigate back after short delay so toast is readable
     setTimeout(() => navigate(-1), 2500);
-  }, [navigate]);
+  }, [navigate, clearTimers]);
 
-  const clearTimers = () => {
-    clearInterval(countdownRef.current);
-    clearInterval(renewTimerRef.current);
-    clearInterval(pollTimerRef.current);
-  };
-
-  // ── On mount: guard multi-tab (BroadcastChannel) ─────────────────────────
+  // ── Mount: multi-tab guard + create booking ──────────────────────────────
   useEffect(() => {
     if (!eventId || !selectedSeats?.length) { navigate("/events"); return; }
 
-    // Prevent same user from opening multiple checkout tabs for same event
     const channel = new BroadcastChannel(`checkout:${eventId}`);
     channel.postMessage({ type: "CHECKOUT_OPEN" });
     channel.onmessage = (e) => {
@@ -250,17 +249,35 @@ const Checkout = () => {
       }
     };
 
-    createBooking();
+    const doCreateBooking = async () => {
+      try {
+        const res = await api.post("/bookings", {
+          eventId,
+          seatIds: selectedSeats.map((s) => s._id),
+          idempotencyKey: stateIdempotencyKey || uuidv4(),
+        });
+        bookingRef.current = res.data.data;
+        setBooking(res.data.data);
+      } catch (err) {
+        const raw = err.response?.data?.error;
+        const msg = typeof raw === 'string' ? raw : raw?.message || JSON.stringify(raw) || "Could not create booking";
+        toast.error(msg);
+        navigate(-1);
+      } finally {
+        setCreatingBooking(false);
+      }
+    };
+    doCreateBooking();
 
     return () => channel.close();
   }, []);
 
-  // ── Countdown + lock renewal + seat polling ───────────────────────────────
+  // ── Countdown + renewal + poll (start after booking created) ─────────────
   useEffect(() => {
     if (creatingBooking || seatsLost) return;
 
-    // Countdown
     setCountdown(LOCK_TTL);
+
     countdownRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -272,14 +289,10 @@ const Checkout = () => {
       });
     }, 1000);
 
-    // Proactive lock renewal before TTL expires
     renewTimerRef.current = setInterval(async () => {
       if (paymentSucceeded.current) return;
       try {
-        await api.post("/seats/renew", {
-          eventId,
-          seatIds: selectedSeats.map((s) => s._id),
-        });
+        await api.post("/seats/renew", { eventId, seatIds: selectedSeats.map((s) => s._id) });
         setCountdown(LOCK_TTL);
       } catch (err) {
         if (err.response?.status === 409) {
@@ -288,52 +301,74 @@ const Checkout = () => {
       }
     }, RENEW_INTERVAL * 1000);
 
-    // Poll seat state to detect if locks were stolen (e.g. Redis flush / admin override)
     pollTimerRef.current = setInterval(async () => {
       if (paymentSucceeded.current) return;
+      // bookingRef is always current — no stale closure
+      const currentBooking = bookingRef.current;
+      if (!currentBooking) return;
+
       try {
         const { data } = await api.get(`/seats/${eventId}`);
         const seatMap = Object.fromEntries(data.seats.map((s) => [s._id, s]));
-        const userId = booking?.user;
+        // booking.user is the userId string stored in the booking document
+        const uid = currentBooking.user?.toString();
+
         const lostSeat = selectedSeats.find((s) => {
           const live = seatMap[s._id];
-          return !live || (live.status !== "LOCKED") || (live.lockedBy && live.lockedBy !== userId);
+          if (!live) return true;
+          // seat is safely ours
+          if (live.status === "LOCKED" && live.lockedBy?.toString() === uid) return false;
+          // seat was just booked (payment completed mid-poll) — safe
+          if (live.status === "BOOKED") return false;
+          // anything else (AVAILABLE = lock expired, LOCKED by someone else)
+          return live.status !== "AVAILABLE";
         });
+
         if (lostSeat) {
           handleSeatsLost(`Seat ${lostSeat.seatNumber} was taken. Please re-select.`);
         }
-      } catch { /* non-fatal polling failure */ }
+      } catch { /* non-fatal */ }
     }, POLL_INTERVAL);
 
     return clearTimers;
   }, [creatingBooking, seatsLost]);
 
-  // ── Unload / unmount cleanup ──────────────────────────────────────────────
+  // ── Page unload — sync XHR so it fires before the tab closes ────────────
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (paymentSucceeded.current || !eventId) return;
-      navigator.sendBeacon(
-        `${import.meta.env.VITE_API_BASE_URL}/seats/release-all`,
-        new Blob([JSON.stringify({ eventId })], { type: "application/json" })
-      );
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/seats/release-all", false); // synchronous
+        xhr.setRequestHeader("Content-Type", "application/json");
+        // Read token from wherever your app stores it
+        const token =
+          localStorage.getItem("token") ||
+          localStorage.getItem("authToken") ||
+          sessionStorage.getItem("token") ||
+          "";
+        if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.send(JSON.stringify({ eventId }));
+      } catch { /* best-effort */ }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      if (!paymentSucceeded.current) releaseSeats();
+      // React unmount (back button, navigate away) — use async axios
+      if (!paymentSucceeded.current && !releasedRef.current) {
+        releasedRef.current = true;
+        api.post("/seats/release-all", { eventId }).catch(() => {});
+      }
     };
-  }, [eventId, releaseSeats]);
+  }, [eventId]);
 
-  // ── Visibility change — re-verify locks when tab regains focus ────────────
+  // ── Tab focus — re-verify locks ──────────────────────────────────────────
   useEffect(() => {
     const handleVisibility = async () => {
       if (document.visibilityState !== "visible" || paymentSucceeded.current || creatingBooking) return;
       try {
-        const res = await api.post("/seats/renew", {
-          eventId,
-          seatIds: selectedSeats.map((s) => s._id),
-        });
+        await api.post("/seats/renew", { eventId, seatIds: selectedSeats.map((s) => s._id) });
         setCountdown(LOCK_TTL);
       } catch (err) {
         if (err.response?.status === 409) {
@@ -344,22 +379,6 @@ const Checkout = () => {
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [creatingBooking, eventId, selectedSeats, handleSeatsLost]);
-
-  const createBooking = async () => {
-    try {
-      const res = await api.post("/bookings", {
-        eventId,
-        seatIds: selectedSeats.map((s) => s._id),
-        idempotencyKey: stateIdempotencyKey || uuidv4(),
-      });
-      setBooking(res.data.data);
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Could not create booking");
-      navigate(-1);
-    } finally {
-      setCreatingBooking(false);
-    }
-  };
 
   if (creatingBooking) return (
     <div className="min-h-screen bg-white dark:bg-neutral-950 flex flex-col items-center justify-center gap-4">
