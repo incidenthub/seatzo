@@ -1,8 +1,10 @@
 import stripe from "../config/stripe.js";
 import Payment from "../models/payment.model.js";
+import Booking from "../models/booking.model.js";
 import AppError from "../utils/appError.js";
 import { PAYMENT_STATUS, DEFAULT_CURRENCY } from "../utils/constants.js";
 import logger from "../config/logger.js";
+import { startRefundSaga } from "./sagaService.js";
 
 export const paymentService = {
   async createPaymentIntent({ userId, bookingId, amount, idempotencyKey }) {
@@ -148,41 +150,31 @@ export const paymentService = {
       );
     }
 
-    let refundResult;
-    try {
-      refundResult = await stripe.refunds.create({
-        payment_intent: payment.stripePaymentIntentId,
-      });
-    } catch (err) {
-      logger.error("Stripe Refund API Failed", {
-        error: err.message,
-        paymentIntentId: payment.stripePaymentIntentId,
-      });
-      throw new AppError(`Refund failed via gateway: ${err.message}`, 502);
+    const booking = await Booking.findById(payment.booking);
+    if (!booking) {
+      throw new AppError("Associated booking not found", 404);
     }
 
-    payment.status = PAYMENT_STATUS.REFUNDED;
-    payment.refundId = refundResult.id;
+    const seatIds = booking.seats.map((s) => s.toString());
+    const eventId = booking.event.toString();
 
-    payment.webhookEvents.push({
-      eventId: refundResult.id,
-      type: "refund.manual_api_trigger",
-      receivedAt: new Date(),
+    await startRefundSaga({
+      paymentIntentId: payment.stripePaymentIntentId,
+      bookingId: booking._id.toString(),
+      eventId,
+      seatIds,
+      refundType: 'refund.manual_api_trigger',
     });
 
-    await payment.save();
-
-    logger.info("Database Updated: Payment refunded successfully", {
+    logger.info("RefundSaga started for payment", {
       paymentId: payment._id,
-      refundId: refundResult.id,
+      paymentIntentId: payment.stripePaymentIntentId,
     });
-
-    logger.info(">> Ready for Bookings Refund Integration via Person A/B <<");
 
     return {
       paymentId: payment._id,
       status: payment.status,
-      refundId: payment.refundId,
+      message: 'Refund saga initiated — payment will be refunded once all validations pass',
     };
   },
 };

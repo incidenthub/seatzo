@@ -5,6 +5,9 @@ import cookieParser from 'cookie-parser';
 
 // ── Workers ─────────────────────────────────────────────────────────────────
 import './src/workers/seatExpiryWorker.js';
+import './src/queues/sagaQueue.js';
+import { startRecoveryWorker } from './src/workers/sagaRecoveryWorker.js';
+startRecoveryWorker();
 
 // ── Middleware ──────────────────────────────────────────────────────────────
 import requestId from './src/middleware/requestId.js';

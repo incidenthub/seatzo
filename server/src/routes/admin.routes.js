@@ -7,6 +7,11 @@ import {
   getDashboardStats,
   getPendingOrganisers,
   verifyOrganiser,
+  listSagas,
+  getSaga,
+  retrySagaHandler,
+  dismissSagaHandler,
+  getSagasStats,
 } from '../controllers/admin.controller.js';
 import { protect, requireRole } from '../middleware/auth.middleware.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -25,5 +30,11 @@ router.get('/revenue', asyncHandler(getPlatformRevenue));
 
 router.get('/organisers/pending', asyncHandler(getPendingOrganisers));
 router.patch('/organisers/:id/verify', asyncHandler(verifyOrganiser));
+
+router.get('/sagas/stats', asyncHandler(getSagasStats));
+router.get('/sagas', asyncHandler(listSagas));
+router.get('/sagas/:id', asyncHandler(getSaga));
+router.post('/sagas/:id/retry', asyncHandler(retrySagaHandler));
+router.post('/sagas/:id/dismiss', asyncHandler(dismissSagaHandler));
 
 export default router;
