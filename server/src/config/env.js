@@ -46,6 +46,7 @@ function loadAndValidateEnv() {
       smtpPass: process.env.SMTP_PASS,
       fromEmail: process.env.EMAIL_FROM || process.env.FROM_EMAIL,
     },
+    appUrl: process.env.APP_URL || 'http://localhost:5000',
   });
 
   return config;
