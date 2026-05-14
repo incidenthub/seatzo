@@ -1,5 +1,5 @@
 import SagaState, { SAGA_STATUS } from '../models/sagaState.model.js';
-import { sagaQueue } from '../queues/sagaQueue.js';
+import { queueSaga } from '../queues/agendaQueue.js';
 import logger from '../config/logger.js';
 import { sendSagaFailureAlert } from '../services/sagaAdminService.js';
 
@@ -20,23 +20,12 @@ export async function sagaRecoveryWorker() {
     saga.status = SAGA_STATUS.PENDING;
     await saga.save();
 
-    await sagaQueue.add(
-      saga._id,
-      {
-        sagaId: saga._id,
-        paymentIntentId: saga.paymentIntentId,
-        bookingId: saga.bookingId,
-        eventId: saga.eventId,
-        seatIds: saga.seatIds,
-      },
-      {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-        jobId: `${saga._id}-retry-${saga.retryCount}`,
-      }
-    );
+    await queueSaga(saga._id, {
+      paymentIntentId: saga.paymentIntentId,
+      bookingId: saga.bookingId,
+      eventId: saga.eventId,
+      seatIds: saga.seatIds,
+    });
 
     logger.info(`[SagaRecovery] Re-queued stale saga ${saga._id} (attempt ${saga.retryCount})`);
   }

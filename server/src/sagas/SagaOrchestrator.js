@@ -1,33 +1,16 @@
 import logger from '../config/logger.js';
 import { SAGA_STATUS } from '../models/sagaState.model.js';
 import SagaState from '../models/sagaState.model.js';
-import { sagaQueue } from '../queues/sagaQueue.js';
 
 export class SagaOrchestrator {
   constructor(sagaId) {
     this.sagaId = sagaId;
   }
 
+  // The start method is now handled by queueSaga in sagaService.js
+  // Kept for compatibility but no longer used
   async start(initialData) {
-    const saga = await SagaState.findById(this.sagaId);
-    if (!saga) throw new Error(`Saga ${this.sagaId} not found`);
-
-    saga.status = SAGA_STATUS.PENDING;
-    await saga.save();
-
-    await sagaQueue.add(
-      this.sagaId,
-      { sagaId: this.sagaId, ...initialData },
-      {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-        jobId: this.sagaId,
-      }
-    );
-
-    logger.info(`[SagaOrchestrator] Started saga ${this.sagaId} (${saga.type})`);
+    logger.info(`[SagaOrchestrator] Legacy start called for ${this.sagaId} (should use queueSaga instead)`);
   }
 
   static async recordStepSuccess(sagaId, stepIndex) {

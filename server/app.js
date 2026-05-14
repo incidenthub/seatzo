@@ -5,9 +5,8 @@ import cookieParser from 'cookie-parser';
 
 // ── Workers ─────────────────────────────────────────────────────────────────
 import './src/workers/seatExpiryWorker.js';
-import './src/queues/sagaQueue.js';
+import { startAgenda } from './src/queues/agendaQueue.js';
 import { startRecoveryWorker } from './src/workers/sagaRecoveryWorker.js';
-startRecoveryWorker();
 
 // ── Middleware ──────────────────────────────────────────────────────────────
 import requestId from './src/middleware/requestId.js';
@@ -24,6 +23,10 @@ import adminRoutes from "./src/routes/admin.routes.js";
 import { getSeats } from './src/controllers/seatController.js';
 
 const app = express();
+
+// ─── Start Agenda Queue ────────────────────────────────────────────────────
+await startAgenda();
+startRecoveryWorker();
 
 
 

@@ -1,5 +1,5 @@
 import SagaState, { SAGA_STATUS, SAGA_TYPE } from '../models/sagaState.model.js';
-import { sagaQueue } from '../queues/sagaQueue.js';
+import { queueSaga } from '../queues/agendaQueue.js';
 import logger from '../config/logger.js';
 import { sendSagaFailureAlertEmail } from '../config/email.js';
 
@@ -69,23 +69,12 @@ export async function retrySaga(sagaId) {
   saga.failedAt = null;
   await saga.save();
 
-  await sagaQueue.add(
-    saga._id,
-    {
-      sagaId: saga._id,
-      paymentIntentId: saga.paymentIntentId,
-      bookingId: saga.bookingId,
-      eventId: saga.eventId,
-      seatIds: saga.seatIds,
-    },
-    {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 5000 },
-      removeOnComplete: true,
-      removeOnFail: false,
-      jobId: `${saga._id}-manual-retry`,
-    }
-  );
+  await queueSaga(saga._id, {
+    paymentIntentId: saga.paymentIntentId,
+    bookingId: saga.bookingId,
+    eventId: saga.eventId,
+    seatIds: saga.seatIds,
+  });
 
   logger.info(`[SagaAdmin] Saga ${sagaId} manually re-queued by admin`);
   return saga;

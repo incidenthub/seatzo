@@ -9,7 +9,7 @@ import { withTransaction } from '../utils/mongoTransaction.js';
 import { generateQRCode } from '../utils/qrCode.js';
 import { SagaOrchestrator } from '../sagas/SagaOrchestrator.js';
 import { executeCompensation } from './compensatingJobs.js';
-import { paymentQueue } from '../queues/paymentEventsQueue.js';
+import { queuePaymentSuccessEmail } from '../queues/agendaQueue.js';
 
 const STEPS = [
   { name: 'PAYMENT_CONFIRM', index: 0 },
@@ -119,20 +119,11 @@ async function step2SeatsBook(saga) {
 }
 
 async function step3EmailNotify(payment, saga) {
-  await paymentQueue.add(
-    'PAYMENT_SUCCESS',
-    {
-      paymentId: payment._id,
-      paymentIntentId: payment.stripePaymentIntentId,
-      bookingId: saga.bookingId,
-      eventId: saga.eventId,
-    },
-    {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 5000 },
-      removeOnComplete: true,
-      removeOnFail: false,
-    }
-  );
+  await queuePaymentSuccessEmail({
+    paymentId: payment._id,
+    paymentIntentId: payment.stripePaymentIntentId,
+    bookingId: saga.bookingId,
+    eventId: saga.eventId,
+  });
   logger.info(`[PaymentConfirmSaga] Step 3: Email job dispatched for ${saga._id}`);
 }

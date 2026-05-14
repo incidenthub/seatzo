@@ -1,6 +1,7 @@
 import SagaState, { SAGA_STATUS, SAGA_TYPE } from '../models/sagaState.model.js';
 import { SagaOrchestrator } from '../sagas/SagaOrchestrator.js';
 import logger from '../config/logger.js';
+import { queueSaga } from '../queues/agendaQueue.js';
 
 export async function startPaymentConfirmSaga({ paymentIntentId, eventId, bookingId, seatIds }) {
   const sagaId = paymentIntentId;
@@ -24,8 +25,7 @@ export async function startPaymentConfirmSaga({ paymentIntentId, eventId, bookin
     retryCount: 0,
   });
 
-  const orchestrator = new SagaOrchestrator(sagaId);
-  await orchestrator.start({ paymentIntentId, eventId, bookingId, seatIds });
+  await queueSaga(sagaId, { paymentIntentId, eventId, bookingId, seatIds });
 
   return sagaId;
 }
@@ -52,8 +52,7 @@ export async function startRefundSaga({ paymentIntentId, bookingId, eventId, sea
     retryCount: 0,
   });
 
-  const orchestrator = new SagaOrchestrator(sagaId);
-  await orchestrator.start({ paymentIntentId, bookingId, eventId, seatIds, refundType });
+  await queueSaga(sagaId, { paymentIntentId, bookingId, eventId, seatIds, refundType });
 
   return sagaId;
 }
