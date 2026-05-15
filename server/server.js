@@ -1,5 +1,6 @@
 
 // Dynamic imports AFTER dotenv loads
+import mongoose from "mongoose";
 const { default: env } = await import('./src/config/env.js');
 const { default: logger } = await import('./src/config/logger.js');
 const { default: app } = await import('./app.js');
@@ -54,8 +55,22 @@ connectDB().then(async () => {
     logLabel: 'Seeded default admin account',
   });
 
-  app.listen(env.port, () => {
+  const server = app.listen(env.port, () => {
     logger.info(`Server running on port ${env.port}`, { env: env.nodeEnv });
+  });
+
+  process.on('SIGTERM', () => {
+    logger.info('SIGTERM signal received: Closing HTTP server');
+    server.close(() => {
+      logger.info('HTTP server closed');
+      mongoose.disconnect().then(() => {
+        logger.info('MongoDB connection closed');
+        process.exit(0);
+      }).catch(e => {
+        logger.error('Error disconnecting from MongoDB', { error: e.message });
+        process.exit(1);
+      });
+    });
   });
 }).catch((err) => {
   logger.fatal('Failed to start server', { error: err.message });
