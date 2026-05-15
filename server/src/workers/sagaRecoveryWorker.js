@@ -3,7 +3,7 @@ import { sagaQueue } from '../queues/sagaQueue.js';
 import logger from '../config/logger.js';
 import { sendSagaFailureAlert } from '../services/sagaAdminService.js';
 
-const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+const STALE_THRESHOLD_MS = 15 * 60 * 1000;
 const MAX_RETRIES = 5;
 
 export async function sagaRecoveryWorker() {

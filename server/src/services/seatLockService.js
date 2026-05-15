@@ -69,21 +69,37 @@ export const releaseLockIfOwner = async (eventId, seatId, userId) => {
 
 export const lockMultipleSeats = async (eventId, seatIds, userId) => {
   const uid = userId.toString();
-  const newlyLocked = [];
-  try {
-    for (const seatId of seatIds) {
-      const success = await lockSeat(eventId, seatId, uid);
-      if (!success) {
-        await Promise.allSettled(newlyLocked.map((id) => releaseLockIfOwner(eventId, id, uid)));
-        return { success: false, failedSeat: seatId };
-      }
-      newlyLocked.push(seatId);
-    }
-    return { success: true };
-  } catch (err) {
-    await Promise.allSettled(newlyLocked.map((id) => releaseLockIfOwner(eventId, id, uid)));
-    throw err;
+  
+  const pipeline = redis.multi();
+  for (const seatId of seatIds) {
+    const key = `seat:${eventId}:${seatId}`;
+    pipeline.eval(LOCK_SCRIPT, { keys: [key], arguments: [uid, String(LOCK_TTL)] });
   }
+  
+  const results = await pipeline.exec();
+  
+  const failedIndices = [];
+  results.forEach((result, i) => {
+    if (result[1] === 'CONFLICT') failedIndices.push(i);
+  });
+  
+  if (failedIndices.length > 0) {
+    const releasePipeline = redis.multi();
+    failedIndices.forEach(i => {
+      const seatId = seatIds[i];
+      const key = `seat:${eventId}:${seatId}`;
+      releasePipeline.eval(RELEASE_SCRIPT, { keys: [key], arguments: [uid] });
+    });
+    await releasePipeline.exec();
+    return { success: false, failedSeat: seatIds[failedIndices[0]] };
+  }
+  
+  await Seat.updateMany(
+    { _id: { $in: seatIds }, status: { $ne: 'LOCKED' } },
+    { status: 'LOCKED', lockedBy: uid, lockExpiresAt: new Date(Date.now() + LOCK_TTL * 1000) }
+  );
+  
+  return { success: true };
 };
 
 export const renewLocks = async (eventId, seatIds, userId) => {

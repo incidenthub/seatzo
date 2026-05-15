@@ -65,7 +65,9 @@ export const sagaWorker = new Worker(
     connection,
     concurrency: 3,
     removeOnComplete: { count: 100 },
-    removeOnFail: false,
+    removeOnFail: { count: 500 },
+    lockDuration: 30000,
+    lockRenewTime: 10000,
   }
 );
 
