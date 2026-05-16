@@ -138,7 +138,11 @@ const paymentWorker = new Worker('payment-events-queue', async job => {
 
 }, { 
   connection,
-  concurrency: 5
+  concurrency: 5,
+  removeOnComplete: { count: 200 },
+  removeOnFail: { count: 500 },
+  lockDuration: 30000,
+  lockRenewTime: 10000,
 });
 
 logger.info('[BullMQ] Payment Events Worker initialized and listening');
