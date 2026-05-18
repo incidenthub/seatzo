@@ -48,7 +48,7 @@ const apiLimiter = rateLimit({
 app.use(apiLimiter);
 
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN,
+  origin: [process.env.CLIENT_URL || 'http://localhost:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
