@@ -44,9 +44,14 @@ const App = () => {
           position="top-right"
           toastOptions={{
             style: {
-              background: "#18181b",
-              color: "#fff",
-              border: "1px solid #27272a",
+              background: "#ffffff",
+              color: "#0f172a",
+              border: "1px solid #e2e8f0",
+              fontSize: "14px",
+              fontWeight: "600",
+              borderRadius: "12px",
+              padding: "12px 16px",
+              boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
             },
           }}
         />

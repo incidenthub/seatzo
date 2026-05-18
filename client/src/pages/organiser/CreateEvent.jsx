@@ -24,22 +24,25 @@ const defaultSection = () => ({
 
 const inputStyle = {
   width: "100%",
-  background: "#18181b",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 8,
-  padding: "10px 14px",
-  color: "#fafafa",
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: 12,
+  padding: "12px 16px",
+  color: "#0f172a",
   fontSize: 14,
   outline: "none",
   boxSizing: "border-box",
+  transition: "all 0.2s",
 };
 
 const labelStyle = {
-  fontSize: 12,
-  color: "#71717a",
+  fontSize: 11,
+  fontWeight: 700,
+  color: "#64748b",
   display: "block",
   marginBottom: 6,
-  letterSpacing: 0.3,
+  letterSpacing: 0.5,
+  textTransform: "uppercase",
 };
 
 const FormGroup = ({ label, children }) => (
@@ -127,8 +130,8 @@ const CreateEvent = () => {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
-        input:focus, select:focus, textarea:focus { border-color: rgba(124,58,237,0.6) !important; }
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;700&display=swap');
+        input:focus, select:focus, textarea:focus { border-color: #7c3aed !important; box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.05); }
       `}</style>
 
       <div style={{ marginBottom: 32 }}>
@@ -137,14 +140,14 @@ const CreateEvent = () => {
             fontFamily: "'Syne', sans-serif",
             fontSize: 28,
             fontWeight: 800,
-            color: "#fafafa",
+            color: "#0f172a",
             margin: 0,
             letterSpacing: -0.5,
           }}
         >
           Create Event
         </h1>
-        <p style={{ color: "#52525b", fontSize: 14, margin: "4px 0 0" }}>
+        <p style={{ color: "#64748b", fontSize: 14, margin: "4px 0 0", fontWeight: 500 }}>
           Saved as draft — publish when ready
         </p>
       </div>
@@ -259,9 +262,10 @@ const CreateEvent = () => {
           <p
             style={{
               fontSize: 13,
-              color: "#52525b",
+              color: "#64748b",
               marginTop: -8,
               marginBottom: 16,
+              fontWeight: 500
             }}
           >
             Define sections like PREMIUM, VIP, GENERAL. Rows are letters (A, B,
@@ -272,9 +276,9 @@ const CreateEvent = () => {
             <div
               key={i}
               style={{
-                background: "#0e0e10",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: 12,
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 16,
                 padding: 20,
                 marginBottom: 12,
                 position: "relative",
@@ -291,9 +295,11 @@ const CreateEvent = () => {
                 <span
                   style={{
                     fontFamily: "'Syne', sans-serif",
-                    fontSize: 13,
-                    color: "#71717a",
-                    fontWeight: 600,
+                    fontSize: 12,
+                    color: "#94a3b8",
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1
                   }}
                 >
                   SECTION {i + 1}
@@ -305,9 +311,10 @@ const CreateEvent = () => {
                     style={{
                       background: "none",
                       border: "none",
-                      color: "#f87171",
+                      color: "#ef4444",
                       cursor: "pointer",
                       fontSize: 12,
+                      fontWeight: 600
                     }}
                   >
                     Remove
@@ -364,9 +371,9 @@ const CreateEvent = () => {
                 </FormGroup>
               </div>
 
-              <div style={{ fontSize: 12, color: "#52525b", marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, fontWeight: 500 }}>
                 → {sec.rows.length} rows × {sec.seatsPerRow} seats ={" "}
-                <strong style={{ color: "#71717a" }}>
+                <strong style={{ color: "#0f172a" }}>
                   {sec.rows.length * (Number(sec.seatsPerRow) || 0)} seats
                 </strong>
               </div>
@@ -378,14 +385,18 @@ const CreateEvent = () => {
             onClick={addSection}
             style={{
               width: "100%",
-              padding: "10px",
-              borderRadius: 10,
+              padding: "12px",
+              borderRadius: 12,
               background: "transparent",
-              border: "1px dashed rgba(124,58,237,0.3)",
-              color: "#c084fc",
+              border: "2px dashed #7c3aed33",
+              color: "#7c3aed",
               fontSize: 13,
+              fontWeight: 700,
               cursor: "pointer",
+              transition: 'all 0.2s'
             }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(124, 58, 237, 0.05)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
             + Add Section
           </button>
@@ -397,12 +408,13 @@ const CreateEvent = () => {
             type="button"
             onClick={() => navigate("/organiser/events")}
             style={{
-              padding: "12px 24px",
-              borderRadius: 10,
-              background: "transparent",
-              border: "1px solid rgba(255,255,255,0.08)",
-              color: "#71717a",
+              padding: "12px 32px",
+              borderRadius: 12,
+              background: "white",
+              border: "1px solid #e2e8f0",
+              color: "#64748b",
               fontSize: 14,
+              fontWeight: 600,
               cursor: "pointer",
             }}
           >
@@ -414,14 +426,15 @@ const CreateEvent = () => {
             style={{
               flex: 1,
               padding: "12px",
-              borderRadius: 10,
+              borderRadius: 12,
               background: loading ? "#4c1d95" : "#7c3aed",
               border: "none",
               color: "#fff",
               fontSize: 14,
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
               fontFamily: "'Syne', sans-serif",
+              boxShadow: '0 10px 15px -3px rgba(124, 58, 237, 0.2)'
             }}
           >
             {loading ? "Creating..." : "Create Event (Draft)"}
@@ -435,22 +448,23 @@ const CreateEvent = () => {
 const Section = ({ title, children }) => (
   <div
     style={{
-      background: "#111113",
-      border: "1px solid rgba(255,255,255,0.06)",
-      borderRadius: 14,
-      padding: 24,
+      background: "#ffffff",
+      border: "1px solid #e2e8f0",
+      borderRadius: 20,
+      padding: 32,
       marginBottom: 20,
+      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)'
     }}
   >
     <div
       style={{
         fontFamily: "'Syne', sans-serif",
-        fontSize: 12,
-        fontWeight: 700,
-        color: "#52525b",
-        letterSpacing: 1,
+        fontSize: 11,
+        fontWeight: 800,
+        color: "#94a3b8",
+        letterSpacing: 1.5,
         textTransform: "uppercase",
-        marginBottom: 20,
+        marginBottom: 24,
       }}
     >
       {title}

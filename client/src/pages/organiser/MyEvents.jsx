@@ -7,18 +7,18 @@ import { useAuth } from "../../context/AuthContext";
 const STATUS_COLORS = {
   draft: {
     bg: "rgba(245,158,11,0.1)",
-    border: "rgba(245,158,11,0.3)",
-    text: "#fbbf24",
+    border: "rgba(245,158,11,0.2)",
+    text: "#b45309",
   },
   published: {
     bg: "rgba(34,197,94,0.1)",
-    border: "rgba(34,197,94,0.3)",
-    text: "#4ade80",
+    border: "rgba(34,197,94,0.2)",
+    text: "#15803d",
   },
   cancelled: {
     bg: "rgba(239,68,68,0.1)",
-    border: "rgba(239,68,68,0.3)",
-    text: "#f87171",
+    border: "rgba(239,68,68,0.2)",
+    text: "#b91c1c",
   },
 };
 
@@ -30,7 +30,7 @@ const Badge = ({ status }) => {
         padding: "3px 10px",
         borderRadius: 100,
         fontSize: 11,
-        fontWeight: 600,
+        fontWeight: 700,
         letterSpacing: 0.5,
         textTransform: "uppercase",
         background: c.bg,
@@ -119,7 +119,7 @@ const MyEvents = () => {
 
   return (
     <div>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;700&display=swap');`}</style>
 
       {/* Header */}
       <div
@@ -136,32 +136,33 @@ const MyEvents = () => {
               fontFamily: "'Syne', sans-serif",
               fontSize: 28,
               fontWeight: 800,
-              color: "#fafafa",
+              color: "#0f172a",
               margin: 0,
               letterSpacing: -0.5,
             }}
           >
             My Events
           </h1>
-          <p style={{ color: "#52525b", fontSize: 14, margin: "4px 0 0" }}>
+          <p style={{ color: "#64748b", fontSize: 14, margin: "4px 0 0", fontWeight: 500 }}>
             {events.length} event{events.length !== 1 ? "s" : ""} created
           </p>
         </div>
         <button
           onClick={() => navigate("/organiser/events/create")}
           style={{
-            padding: "10px 20px",
-            borderRadius: 10,
+            padding: "10px 24px",
+            borderRadius: 12,
             background: "#7c3aed",
             border: "none",
             color: "#fff",
             fontSize: 14,
-            fontWeight: 600,
+            fontWeight: 700,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             gap: 8,
             fontFamily: "'Syne', sans-serif",
+            boxShadow: '0 10px 15px -3px rgba(124, 58, 237, 0.2)'
           }}
         >
           <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Create Event
@@ -174,12 +175,13 @@ const MyEvents = () => {
           style={{
             textAlign: "center",
             padding: "80px 0",
-            border: "1px dashed rgba(255,255,255,0.08)",
-            borderRadius: 16,
+            border: "2px dashed #e2e8f0",
+            borderRadius: 24,
+            background: 'white'
           }}
         >
           <div style={{ fontSize: 40, marginBottom: 16 }}>🎪</div>
-          <p style={{ color: "#52525b", fontSize: 15 }}>
+          <p style={{ color: "#64748b", fontSize: 15, fontWeight: 500 }}>
             No events yet. Create your first one!
           </p>
           <button
@@ -207,13 +209,14 @@ const MyEvents = () => {
           <div
             key={event._id}
             style={{
-              background: "#111113",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 14,
+              background: "#ffffff",
+              border: "1px solid #e2e8f0",
+              borderRadius: 18,
               padding: "20px 24px",
               display: "flex",
               alignItems: "center",
               gap: 20,
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)'
             }}
           >
             {/* Poster */}
@@ -224,9 +227,10 @@ const MyEvents = () => {
                 style={{
                   width: 56,
                   height: 56,
-                  borderRadius: 10,
+                  borderRadius: 12,
                   objectFit: "cover",
                   flexShrink: 0,
+                  border: '1px solid #f1f5f9'
                 }}
                 onError={(e) => {
                   e.target.style.display = "none";
@@ -235,8 +239,9 @@ const MyEvents = () => {
                     const div = document.createElement("div");
                     div.style.width = "56px";
                     div.style.height = "56px";
-                    div.style.borderRadius = "10px";
-                    div.style.background = "rgba(124,58,237,0.15)";
+                    div.style.borderRadius = "12px";
+                    div.style.background = "#f8fafc";
+                    div.style.border = "1px solid #e2e8f0";
                     div.style.display = "flex";
                     div.style.alignItems = "center";
                     div.style.justifyContent = "center";
@@ -251,9 +256,10 @@ const MyEvents = () => {
                 style={{
                   width: 56,
                   height: 56,
-                  borderRadius: 10,
+                  borderRadius: 12,
                   flexShrink: 0,
-                  background: "rgba(124,58,237,0.15)",
+                  background: "#f8fafc",
+                  border: '1px solid #e2e8f0',
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -277,9 +283,9 @@ const MyEvents = () => {
                 <span
                   style={{
                     fontFamily: "'Syne', sans-serif",
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: 700,
-                    color: "#fafafa",
+                    color: "#0f172a",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -289,7 +295,7 @@ const MyEvents = () => {
                 </span>
                 <Badge status={event.status} />
               </div>
-              <div style={{ fontSize: 13, color: "#52525b" }}>
+              <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
                 {event.venue} · {event.city} ·{" "}
                 {new Date(event.date).toLocaleDateString("en-IN", {
                   day: "numeric",
@@ -297,8 +303,8 @@ const MyEvents = () => {
                   year: "numeric",
                 })}
               </div>
-              <div style={{ fontSize: 13, color: "#71717a", marginTop: 2 }}>
-                {event.availableSeats}/{event.totalSeats} seats available
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {event.availableSeats} / {event.totalSeats} seats available
               </div>
             </div>
 
@@ -310,14 +316,14 @@ const MyEvents = () => {
                   navigate(`/organiser/events/${event._id}/analytics`)
                 }
                 title="Analytics"
-                style={btnStyle("#18181b", "rgba(255,255,255,0.08)", "#a1a1aa")}
+                style={btnStyle("#f8fafc", "#e2e8f0", "#64748b")}
               >
                 <svg
                   width="15"
                   height="15"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.8"
+                  strokeWidth="2"
                   viewBox="0 0 24 24"
                 >
                   <path d="M18 20V10M12 20V4M6 20v-6" />
@@ -332,9 +338,9 @@ const MyEvents = () => {
                   }
                   title="Edit"
                   style={btnStyle(
-                    "#18181b",
-                    "rgba(255,255,255,0.08)",
-                    "#a1a1aa",
+                    "#f8fafc",
+                    "#e2e8f0",
+                    "#64748b",
                   )}
                 >
                   <svg
@@ -342,7 +348,7 @@ const MyEvents = () => {
                     height="15"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="1.8"
+                    strokeWidth="2"
                     viewBox="0 0 24 24"
                   >
                     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
@@ -359,8 +365,8 @@ const MyEvents = () => {
                   title="Publish"
                   style={btnStyle(
                     "rgba(34,197,94,0.1)",
-                    "rgba(34,197,94,0.3)",
-                    "#4ade80",
+                    "rgba(34,197,94,0.2)",
+                    "#15803d",
                   )}
                 >
                   {publishing === event._id ? (
@@ -371,7 +377,7 @@ const MyEvents = () => {
                       height="15"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="1.8"
+                      strokeWidth="2.5"
                       viewBox="0 0 24 24"
                     >
                       <path d="M5 12l5 5L20 7" />
@@ -388,8 +394,8 @@ const MyEvents = () => {
                   title="Cancel Event"
                   style={btnStyle(
                     "rgba(239,68,68,0.08)",
-                    "rgba(239,68,68,0.25)",
-                    "#f87171",
+                    "rgba(239,68,68,0.15)",
+                    "#ef4444",
                   )}
                 >
                   {cancelling === event._id ? (
@@ -400,7 +406,7 @@ const MyEvents = () => {
                       height="15"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="1.8"
+                      strokeWidth="2.5"
                       viewBox="0 0 24 24"
                     >
                       <path d="M18 6L6 18M6 6l12 12" />
@@ -417,9 +423,9 @@ const MyEvents = () => {
 };
 
 const btnStyle = (bg, border, color) => ({
-  width: 34,
-  height: 34,
-  borderRadius: 8,
+  width: 36,
+  height: 36,
+  borderRadius: 10,
   border: `1px solid ${border}`,
   background: bg,
   color,

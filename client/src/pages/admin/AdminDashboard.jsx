@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import api from "../../utils/axios";
 
 const StatCard = ({ label, value, icon, color }) => (
-  <div className="bg-[#0e0e11] border border-white/5 p-6 rounded-[24px] hover:border-white/10 transition-all group">
+  <div className="bg-white border border-slate-200 p-6 rounded-[24px] hover:shadow-xl hover:shadow-slate-200/50 transition-all group">
     <div className="flex items-start justify-between">
       <div>
-        <p className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] mb-2">{label}</p>
-        <h3 className="text-3xl font-black text-white" style={{ fontFamily: "'Syne', sans-serif" }}>{value}</h3>
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{label}</p>
+        <h3 className="text-3xl font-black text-slate-900 uppercase" style={{ fontFamily: "'Syne', sans-serif" }}>{value}</h3>
       </div>
       <div className={`p-3 rounded-2xl ${color} bg-opacity-10 group-hover:scale-110 transition-transform`}>
         {icon}
@@ -38,7 +38,7 @@ const AdminDashboard = () => {
   if (loading) return (
     <div className="flex flex-col items-center justify-center py-32 gap-4">
       <div className="w-10 h-10 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
-      <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest">Loading Platform Stats...</p>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Loading Platform Stats...</p>
     </div>
   );
 
@@ -46,8 +46,8 @@ const AdminDashboard = () => {
     <div className="space-y-10 animate-in fade-in duration-700">
       <header>
         <p className="text-rose-500 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Platform Overview</p>
-        <h1 className="text-4xl font-black text-white tracking-tight" style={{ fontFamily: "'Syne', sans-serif" }}>
-          Good Morning, <span className="text-neutral-500">Admin</span>
+        <h1 className="text-4xl font-black text-slate-900 tracking-tight" style={{ fontFamily: "'Syne', sans-serif" }}>
+          Good Morning, <span className="text-slate-400">Admin</span>
         </h1>
       </header>
 
@@ -80,48 +80,48 @@ const AdminDashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Quick Actions */}
-        <div className="bg-[#0e0e11] border border-white/5 rounded-[32px] p-8">
-          <h3 className="text-xl font-black text-white mb-6" style={{ fontFamily: "'Syne', sans-serif" }}>Quick Actions</h3>
+        <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm">
+          <h3 className="text-xl font-black text-slate-900 mb-6" style={{ fontFamily: "'Syne', sans-serif" }}>Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
-            <button className="flex flex-col items-center justify-center gap-3 p-6 bg-white/5 rounded-2xl hover:bg-white/10 transition-all group border border-white/5">
+            <button className="flex flex-col items-center justify-center gap-3 p-6 bg-slate-50 rounded-2xl hover:bg-rose-50 transition-all group border border-slate-100 hover:border-rose-200">
               <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform">
                 <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="8.5" cy="7" r="4" /><path d="M22 11l-5 5-2-2" /></svg>
               </div>
-              <span className="text-xs font-bold text-neutral-400">Verify Organisers</span>
+              <span className="text-xs font-bold text-slate-500 group-hover:text-rose-600">Verify Organisers</span>
             </button>
-            <button className="flex flex-col items-center justify-center gap-3 p-6 bg-white/5 rounded-2xl hover:bg-white/10 transition-all group border border-white/5">
+            <button className="flex flex-col items-center justify-center gap-3 p-6 bg-slate-50 rounded-2xl hover:bg-blue-50 transition-all group border border-slate-100 hover:border-blue-200">
               <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
                 <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
               </div>
-              <span className="text-xs font-bold text-neutral-400">Manage Users</span>
+              <span className="text-xs font-bold text-slate-500 group-hover:text-blue-600">Manage Users</span>
             </button>
           </div>
         </div>
 
         {/* System Health */}
-        <div className="bg-[#0e0e11] border border-white/5 rounded-[32px] p-8">
-          <h3 className="text-xl font-black text-white mb-6" style={{ fontFamily: "'Syne', sans-serif" }}>Platform Health</h3>
+        <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm">
+          <h3 className="text-xl font-black text-slate-900 mb-6" style={{ fontFamily: "'Syne', sans-serif" }}>Platform Health</h3>
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-bold text-neutral-300">API Server</span>
+                <span className="text-sm font-bold text-slate-700">API Server</span>
               </div>
-              <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full uppercase tracking-widest">Operational</span>
+              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-widest border border-emerald-100">Operational</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-bold text-neutral-300">Database</span>
+                <span className="text-sm font-bold text-slate-700">Database</span>
               </div>
-              <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full uppercase tracking-widest">Connected</span>
+              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-widest border border-emerald-100">Connected</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-bold text-neutral-300">Email Service</span>
+                <span className="text-sm font-bold text-slate-700">Email Service</span>
               </div>
-              <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full uppercase tracking-widest">Ready</span>
+              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-widest border border-emerald-100">Ready</span>
             </div>
           </div>
         </div>
