@@ -5,10 +5,9 @@ import Payment from '../models/payment.model.js';
 import stripe from '../config/stripe.js';
 import AppError from '../utils/appError.js';
 import { BOOKING_STATUS, SEAT_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
-import { paymentQueue } from '../queues/paymentEventsQueue.js';
-import { generateQRCode } from '../utils/qrCode.js';
-import { markSeatsAsBooked, releaseLock } from '../services/seatLockService.js';
+import { releaseLockIfOwner } from '../services/seatLockService.js';
 import redis from '../config/redis.js';
+import { startPaymentConfirmSaga } from '../services/sagaService.js';
 
 export const createBooking = async (req, res) => {
   const { eventId, seatIds, idempotencyKey } = req.body;
@@ -111,7 +110,7 @@ export const cancelBooking = async (req, res) => {
 
   const eventId = booking.event.toString();
   await Promise.allSettled(
-    booking.seats.map((seatId) => releaseLock(eventId, seatId.toString()))
+    booking.seats.map((seatId) => releaseLockIfOwner(eventId, seatId.toString(), booking.user.toString()))
   );
 
   res.status(200).json({ success: true, message: 'Booking cancelled' });
@@ -157,42 +156,14 @@ export const confirmBooking = async (req, res) => {
   const seatIds = booking.seats.map((id) => id.toString());
   const eventId = booking.event.toString();
 
-  booking.status = BOOKING_STATUS.CONFIRMED;
-  booking.confirmedAt = new Date();
-
-  const qrData = {
-    bookingId: booking._id.toString(),
+  await startPaymentConfirmSaga({
+    paymentIntentId,
     eventId,
+    bookingId: booking._id.toString(),
     seatIds,
-    amount: booking.totalAmount,
-    userId: booking.user.toString(),
-  };
-  booking.qrCode = await generateQRCode(qrData);
-  await booking.save();
+  });
 
-  await markSeatsAsBooked(eventId, seatIds, booking._id);
-  await Event.findByIdAndUpdate(booking.event, { $inc: { availableSeats: -seatIds.length } });
   await booking.populate('seats', 'seatNumber section price');
-
-  if (payment) {
-    await paymentQueue.add(
-      'PAYMENT_SUCCESS',
-      {
-        paymentId: payment._id,
-        paymentIntentId: payment.stripePaymentIntentId,
-        bookingId: booking._id,
-        eventId: booking.event,
-      },
-      {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-      }
-    );
-  } else {
-    console.warn(`[ConfirmBooking] Payment record not found for intent ${paymentIntentId}. Email skipped.`);
-  }
 
   res.status(200).json({ success: true, data: booking });
 };

@@ -1,10 +1,15 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 
 // ── Workers ─────────────────────────────────────────────────────────────────
 import './src/workers/seatExpiryWorker.js';
+import './src/queues/sagaQueue.js';
+import { startRecoveryWorker } from './src/workers/sagaRecoveryWorker.js';
+startRecoveryWorker();
 
 // ── Middleware ──────────────────────────────────────────────────────────────
 import requestId from './src/middleware/requestId.js';
@@ -29,11 +34,24 @@ const app = express();
 app.use(requestId);
 
 // 2. CORS
+app.use(helmet());
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again after 15 minutes',
+  keyGenerator: (req) => {
+    // Use the X-Forwarded-For header if available, otherwise fall back to req.ip
+    return req.headers['x-forwarded-for'] || req.ip;
+  }
+});
+app.use(apiLimiter);
+
 app.use(cors({
-  origin: true,
+  origin: process.env.ALLOWED_ORIGIN,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key',],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
 }));
 
 // 3. Webhook Routes MUST come before express.json()

@@ -4,6 +4,13 @@ import Booking from '../models/booking.model.js';
 import AppError from '../utils/appError.js';
 import { BOOKING_STATUS } from '../utils/constants.js';
 import { sendOrganiserApprovalEmail } from '../config/email.js';
+import {
+  getSagas,
+  getSagaById,
+  retrySaga,
+  dismissSaga,
+  getSagaStats,
+} from '../services/sagaAdminService.js';
 
 export const getAllUsers = async (req, res) => {
   const users = await User.find().select('-password -otp').sort('-createdAt');
@@ -107,4 +114,38 @@ export const verifyOrganiser = async (req, res) => {
   }
 
   res.status(200).json({ success: true, data: user });
+};
+
+export const listSagas = async (req, res) => {
+  const { page = '1', limit = '20', type, status, search } = req.query;
+  const result = await getSagas({
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+    type,
+    status,
+    search,
+  });
+  res.status(200).json({ success: true, ...result });
+};
+
+export const getSaga = async (req, res) => {
+  const saga = await getSagaById(req.params.id);
+  if (!saga) throw new AppError('Saga not found', 404);
+  res.status(200).json({ success: true, data: saga });
+};
+
+export const retrySagaHandler = async (req, res) => {
+  const saga = await retrySaga(req.params.id);
+  res.status(200).json({ success: true, data: saga, message: 'Saga re-queued successfully' });
+};
+
+export const dismissSagaHandler = async (req, res) => {
+  const { adminNotes } = req.body;
+  const saga = await dismissSaga(req.params.id, adminNotes);
+  res.status(200).json({ success: true, data: saga, message: 'Saga dismissed' });
+};
+
+export const getSagasStats = async (req, res) => {
+  const stats = await getSagaStats();
+  res.status(200).json({ success: true, data: stats });
 };

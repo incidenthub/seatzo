@@ -201,6 +201,47 @@ export const sendBookingConfirmation = async (to, name, data) => {
   }
 };
 
+// ─── Saga Failure Alert ─────────────────────────────────────────────────────
+export const sendSagaFailureAlertEmail = async (saga) => {
+  const sagaUrl = `${env.appUrl}/admin/sagas/${saga._id}`;
+  const statusLabel = saga.status;
+  const retryLabel = saga.retryCount >= 5 ? ' (MAX RETRIES EXCEEDED)' : '';
+
+  try {
+    await transporter.sendMail({
+      from: `"Seatzo Alerts" <${env.email.fromEmail}>`,
+      to: env.email.smtpUser,
+      subject: `[ALERT] Saga ${saga._id} ${saga.type} failed${retryLabel}`,
+      html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:32px;background:#fff;border-radius:16px;border:1px solid #f1f5f9">
+        <div style="background:#dc2626;color:#fff;padding:24px;border-radius:12px 12px 0 0;margin-bottom:0">
+          <h2 style="margin:0;color:#fff">Saga Execution Failed${retryLabel}</h2>
+        </div>
+        <div style="padding:32px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px">Saga ID</td><td style="padding:8px 0;font-weight:700;font-family:monospace">${saga._id}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px">Type</td><td style="padding:8px 0">${saga.type}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px">Status</td><td style="padding:8px 0"><span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700">${statusLabel}</span></td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px">Failed At</td><td style="padding:8px 0">${saga.failedAt ? new Date(saga.failedAt).toISOString() : 'N/A'}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px">Retry Count</td><td style="padding:8px 0">${saga.retryCount}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px">Completed Steps</td><td style="padding:8px 0">${saga.completedSteps?.join(', ') || 'none'}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px">Payment Intent</td><td style="padding:8px 0;font-family:monospace">${saga.paymentIntentId}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px">Booking ID</td><td style="padding:8px 0;font-family:monospace">${saga.bookingId || 'N/A'}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px">Error</td><td style="padding:8px 0;color:#dc2626;font-size:13px">${saga.error || 'unknown'}</td></tr>
+          </table>
+          <div style="text-align:center;margin-top:32px">
+            <a href="${sagaUrl}" style="display:inline-block;background:#dc2626;color:#fff;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Review Saga in Dashboard</a>
+          </div>
+        </div>
+      </div>
+      `,
+    });
+    console.log(`[Email] Saga failure alert sent for ${saga._id}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send saga alert for ${saga._id}:`, err.message);
+  }
+};
+
 // ─── Organiser Approval Email ────────────────────────────────────────────────
 export const sendOrganiserApprovalEmail = async (to, name) => {
   try {
